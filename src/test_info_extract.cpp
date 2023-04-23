@@ -1,5 +1,7 @@
 #include "test.h"
 
+#define EXTRACT false
+
 // function to return the current exe path
 std::string get_program_path()
 {
@@ -33,16 +35,16 @@ int main()
     std::filesystem::current_path(get_program_path());
 
     std::fstream _fp;
-    _fp.open("bin1.bin", std::ios::in | std::ios::binary);
+    _fp.open("test.bin", std::ios::in | std::ios::binary);
 
     if (!_fp.is_open())
     {
-        printf("There was an error trying to open the bin1 file.\n");
+        printf("There was an error trying to open the test.bin file.\n");
         return 1;
     }
     else
     {
-        printf("The file bin1 was opened correctly.\n");
+        printf("The file test.bin was opened correctly.\n");
     }
 
     /* Get the file size */
@@ -100,6 +102,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first CDDA type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_CDDA.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 cdda = true;
             }
             currentPos = _fp.tellg();
@@ -111,6 +120,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first CDDA GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_CDDA_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 cddaGap = true;
             }
             currentPos = _fp.tellg();
@@ -122,6 +138,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode1 type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE1.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode1 = true;
             }
             currentPos = _fp.tellg();
@@ -133,6 +156,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode1 GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE1_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode1Gap = true;
             }
             currentPos = _fp.tellg();
@@ -144,6 +174,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode1 RAW type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE1_RAW.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode1Raw = true;
             }
             currentPos = _fp.tellg();
@@ -155,6 +192,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2 = true;
             }
             currentPos = _fp.tellg();
@@ -166,6 +210,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2Gap = true;
             }
             currentPos = _fp.tellg();
@@ -177,6 +228,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 XA1 type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_XA1.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2_1 = true;
             }
             currentPos = _fp.tellg();
@@ -188,6 +246,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 XA1 GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_XA1_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2_1_Gap = true;
             }
             currentPos = _fp.tellg();
@@ -199,6 +264,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 XA2 type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_XA2.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2_2 = true;
             }
             currentPos = _fp.tellg();
@@ -210,6 +282,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first Mode2 XA2 GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_XA2_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 mode2_2_Gap = true;
             }
             currentPos = _fp.tellg();
@@ -221,6 +300,13 @@ int main()
             {
                 uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
                 printf("Detected the first ModeX type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODEX.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write((char *)buffer, 2352);
+                    _of.close();
+                }
                 modeX = true;
             }
             currentPos = _fp.tellg();

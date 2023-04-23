@@ -330,7 +330,7 @@ namespace ecm
             {
                 //  The sector is MODE2, and now we will detect what kind
                 //
-                // Might be Mode 2, Form 1 or 2
+                // Might be Mode 2, Form 1
                 //
                 if (
                     eccChecksector(zeroaddress, sector + 0x010, sector + 0x81C) &&

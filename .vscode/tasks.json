@@ -2,15 +2,15 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe compilar archivo activo",
+            "label": "C/C++: g++.exe compilar test_info_extract",
             "command": "C:\\msys64\\mingw64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\src\\test.cpp",
+                "${workspaceFolder}\\src\\test_info_extract.cpp",
                 "${workspaceFolder}\\src\\ecm.cpp",
                 "-o",
-                "${workspaceFolder}\\output\\test.exe"
+                "${workspaceFolder}\\output\\test_info_extract.exe"
             ],
             "options": {
                 "cwd": "${workspaceFolder}\\output\\"
