@@ -1,6 +1,6 @@
 #include "test.h"
 
-#define EXTRACT false
+#define EXTRACT true
 
 // function to return the current exe path
 std::string get_program_path()

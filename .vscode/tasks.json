@@ -22,7 +22,31 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Tarea generada por el depurador."
+            "detail": "Depure the information extractor."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++.exe compilar test_encode_decode",
+            "command": "C:\\msys64\\mingw64\\bin\\g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "${workspaceFolder}\\src\\test_encode_decode.cpp",
+                "${workspaceFolder}\\src\\ecm.cpp",
+                "-o",
+                "${workspaceFolder}\\output\\test_encode_decode.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}\\output\\"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "Depure the encoder decoder test file."
         }
     ],
     "version": "2.0.0"

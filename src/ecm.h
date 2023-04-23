@@ -179,6 +179,12 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
 
+        void inline sectorToTime(
+            uint8_t *out,
+            uint32_t sectorNumber);
+
+        uint32_t timeToSector(uint8_t *in);
+
     private:
         bool inline is_gap(uint8_t *sector, uint16_t length);
         optimizations checkOptimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type type);
@@ -308,14 +314,6 @@ namespace ecm
             sector_type type,
             size_t &output_size,
             optimizations options);
-
-        void sectorToTime(
-            uint8_t *out,
-            uint32_t sector_number);
-
-        void timeToSector(
-            uint8_t *in,
-            uint32_t sectorNumber);
 
         // Private attributes
         //

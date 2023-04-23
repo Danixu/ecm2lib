@@ -1296,7 +1296,7 @@ namespace ecm
         return 0;
     }
 
-    void processor::sectorToTime(
+    void inline processor::sectorToTime(
         uint8_t *out,
         uint32_t sectorNumber)
     {
@@ -1306,8 +1306,24 @@ namespace ecm
 
         // Converting decimal to hex base 10
         // 15 -> 0x15 instead 0x0F
-        out[2] = (sectors / 10 * 16) + (sectors % 10);
-        out[1] = (seconds / 10 * 16) + (seconds % 10);
         out[0] = (minutes / 10 * 16) + (minutes % 10);
+        out[1] = (seconds / 10 * 16) + (seconds % 10);
+        out[2] = (sectors / 10 * 16) + (sectors % 10);
+    }
+
+    /**
+     * @brief Get the three bytes with the sector MSF and converts it to sector number
+     *
+     * @param in The buffer with the three MSF bytes
+     * @return uint32_t The value of the MSF in sector number
+     */
+    uint32_t processor::timeToSector(uint8_t *in)
+    {
+        uint16_t minutes = (in[0] / 16 * 10) + (in[0] % 16);
+        uint16_t seconds = (in[1] / 16 * 10) + (in[1] % 16);
+        uint16_t sectors = (in[2] / 16 * 10) + (in[2] % 16);
+
+        uint32_t time = (minutes * 60 * 75) + (seconds * 75) + sectors;
+        return time;
     }
 }
