@@ -7,10 +7,10 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\src\\main.cpp",
+                "${workspaceFolder}\\src\\test.cpp",
                 "${workspaceFolder}\\src\\ecm.cpp",
                 "-o",
-                "${workspaceFolder}\\output\\main.exe"
+                "${workspaceFolder}\\output\\test.exe"
             ],
             "options": {
                 "cwd": "${workspaceFolder}\\output\\"

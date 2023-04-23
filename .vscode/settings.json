@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "numeric": "cpp",
+        "type_traits": "cpp",
+        "*.tcc": "cpp"
+    }
+}

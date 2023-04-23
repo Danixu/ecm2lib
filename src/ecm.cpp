@@ -105,7 +105,7 @@ namespace ecm
 
         /* Optimize the stream into the output buffer */
         uint64_t currentOutputPos = 0;
-        uint8_t *buffer = new uint8_t[2352]();
+        buffer = new uint8_t[2352]();
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
             uint16_t sectorOutputSize = 0;

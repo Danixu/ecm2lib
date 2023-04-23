@@ -151,6 +151,8 @@ namespace ecm
     public:
         processor();
 
+        sector_type detect(uint8_t *sector);
+
         int8_t cleanStream(
             uint8_t *out,
             uint64_t &outSize,
@@ -179,7 +181,6 @@ namespace ecm
 
     private:
         bool inline is_gap(uint8_t *sector, uint16_t length);
-        sector_type detect(uint8_t *sector);
         optimizations checkOptimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type type);
         static inline uint32_t get32lsb(const uint8_t *src);
         static inline void put32lsb(uint8_t *dest, uint32_t value);
