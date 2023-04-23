@@ -101,6 +101,7 @@ namespace ecm
         STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE,
         STATUS_ERROR_NO_ENOUGH_INPUT_DATA,
         STATUS_ERROR_NO_ENOUGH_SECTORS,
+        STATUS_ERROR_WRONG_INDEX_DATA,
         STATUS_OK = 0
     };
 
@@ -163,6 +164,16 @@ namespace ecm
             sector_type *sectorsIndex,
             uint32_t sectorsIndexSize,
             bool useTheBestOptimizations = true);
+
+        int8_t regenerateStream(
+            uint8_t *out,
+            uint64_t outSize,
+            uint8_t *in,
+            uint64_t &inSize,
+            uint32_t startSectorNumber,
+            optimizations options,
+            sector_type *sectorsIndex,
+            uint32_t sectorsIndexSize);
 
         int8_t cleanSector(
             uint8_t *out,

@@ -105,16 +105,64 @@ namespace ecm
 
         /* Optimize the stream into the output buffer */
         uint64_t currentOutputPos = 0;
-        buffer = new uint8_t[2352]();
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
             uint16_t sectorOutputSize = 0;
-            /* Copy a sector into the buffer to work with it */
-            memccpy(buffer, in + (2352 * i), 2352, 2352);
-            cleanSector(out + currentOutputPos, buffer, sectorsIndex[i], sectorOutputSize, options);
+            cleanSector(out + currentOutputPos, in + (2352 * i), sectorsIndex[i], sectorOutputSize, options);
+            /* Add the written bytes to the current output position */
             currentOutputPos += sectorOutputSize;
         }
-        delete[] buffer;
+        outSize = currentOutputPos;
+
+        return STATUS_OK;
+    }
+
+    int8_t processor::regenerateStream(
+        uint8_t *out,
+        uint64_t outSize,
+        uint8_t *in,
+        uint64_t &inSize,
+        uint32_t startSectorNumber,
+        optimizations options,
+        sector_type *sectorsIndex,
+        uint32_t sectorsIndexSize)
+    {
+        /* Check if the index buffer is not null */
+        if (sectorsIndex == nullptr)
+        {
+            return STATUS_ERROR_WRONG_INDEX_DATA;
+        }
+
+        /* Check if there is enough space into the output buffer */
+        if ((sectorsIndexSize * 2352) > outSize)
+        {
+            return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;
+        }
+
+        /* Do a fast calculation to see if the input stream fits the required data size. Otherwise, return an error */
+        uint64_t inputCalculatedSize = 0;
+        uint64_t sectorCalculatedSize = 0;
+        for (uint32_t i = 0; i < sectorsIndexSize; i++)
+        {
+            encodedSectorSize(sectorsIndex[i], sectorCalculatedSize, options);
+            inputCalculatedSize += sectorCalculatedSize;
+        }
+
+        if (inputCalculatedSize > inSize)
+        {
+            return STATUS_ERROR_NO_ENOUGH_INPUT_DATA;
+        }
+
+        /* Start to decode every sector and place it in the output buffer */
+        uint64_t currentInputPos = 0;
+        for (uint32_t i = 0; i < sectorsIndexSize; i++)
+        {
+            uint16_t readedBytes = 0;
+            regenerateSector(out + (2352 * i), in + currentInputPos, sectorsIndex[i], startSectorNumber + i, readedBytes, options);
+            /* Add the readed bytes to the current input position */
+            currentInputPos += readedBytes;
+        }
+        inSize = currentInputPos;
 
         return STATUS_OK;
     }
@@ -393,13 +441,13 @@ namespace ecm
 
     optimizations processor::checkOptimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type sectorType)
     {
-        if (sectorType && ST_CDDA_GAP || sectorType && ST_CDDA)
+        if (sectorType & ST_CDDA_GAP || sectorType & ST_CDDA)
         {
             // Audio optimizations are always right
             return options;
         }
 
-        if (sectorType && ST_UNKNOWN)
+        if (sectorType & ST_UNKNOWN)
         {
             // Unknown sector will not be optimized, so the options will not be affected
             return options;
@@ -422,9 +470,9 @@ namespace ecm
             uint8_t generatedMSF[3] = {0};
             sectorToTime(generatedMSF, sectorNumber);
 
-            if (sector[0x0C] == generatedMSF[0] ||
-                sector[0x0D] == generatedMSF[1] ||
-                sector[0x0E] == generatedMSF[2])
+            if (sector[0x0C] != generatedMSF[0] ||
+                sector[0x0D] != generatedMSF[1] ||
+                sector[0x0E] != generatedMSF[2])
             {
                 newOptions = (optimizations)(newOptions & (~OO_REMOVE_MSF));
             }

@@ -105,10 +105,10 @@ int main()
             memset(processBuffer, 0, 2352);
             memset(outputBuffer, 0, 2352);
 
-            /* Optimize the sector in the output buffer */
+            /* Encode the sector in the output buffer */
             uint16_t outputProcessedSize = 0;
             sectorsProcessor.cleanSector(processBuffer, testFiles[i].sector, testFiles[i].sectorType, outputProcessedSize, OPTIMIZATIONS);
-            printf("The optimized size is %d.\n", outputProcessedSize);
+            printf("The encoded size is %d.\n", outputProcessedSize);
 
             /* Get the original sector number */
             uint32_t sectorNumber = sectorsProcessor.timeToSector(testFiles[i].sector + 0x0C);
@@ -116,17 +116,17 @@ int main()
             /* Try to regenerate the sector again */
             uint16_t outputReadedSize = 0;
             sectorsProcessor.regenerateSector(outputBuffer, processBuffer, testFiles[i].sectorType, sectorNumber, outputReadedSize, OPTIMIZATIONS);
-            printf("Readed bytes from optimized stream (must match the optimized size): %d.\n", outputReadedSize);
+            printf("Readed bytes from encoded stream (must match the encoded size): %d.\n", outputReadedSize);
 
-            /* Verify if the sector matches (it is perfectly optimized) */
+            /* Verify if the sector matches (it is perfectly encoded) */
             int checkSector = memcmp(testFiles[i].sector, outputBuffer, 2352);
             if (checkSector == 0)
             {
-                printf("The sector was optimized and recovered without any problem.\n");
+                printf("The sector was encoded and decoded without any problem.\n");
             }
             else
             {
-                printf("There was any kind of error optimizing or recovering the original sector. Maybe is time to check the code...\n");
+                printf("There was any kind of error encoding or decoding the original sector. Maybe is time to check the code...\n");
 
                 /* Save the sector output */
                 char fname[17] = {0};
@@ -142,8 +142,84 @@ int main()
     delete[] processBuffer;
     delete[] outputBuffer;
 
+    printf("----------------------------------------------------------------------\n");
     printf("Creating a stream buffer of %d bytes.\n", 2352 * testFiles.size());
-    uint8_t *tBuffer = new uint8_t[2352 * testFiles.size()]();
+    uint8_t *inputBuffer = new uint8_t[2352 * testFiles.size()]();
+
+    /* Copy all the sectors to the test buffer */
+    uint64_t currentPos = 0;
+    for (file_info x : testFiles)
+    {
+        memccpy(inputBuffer + currentPos, x.sector, 2352, 2352);
+        currentPos += 2352;
+    }
+
+    /* Test the multi sector encoder & decoder */
+    outputBuffer = new uint8_t[2352 * testFiles.size()]();
+    uint8_t *encodedBuffer = new uint8_t[2352 * testFiles.size()]();
+    ecm::sector_type *sectorIndex = new ecm::sector_type[testFiles.size()]();
+    uint64_t encodedSize = 2352 * testFiles.size();
+    // ecm::optimizations usedOptimizations = (ecm::optimizations)((OPTIMIZATIONS) & ~ecm::OO_REMOVE_MSF);
+    ecm::optimizations usedOptimizations = (ecm::optimizations)(OPTIMIZATIONS);
+    ecm::optimizations resultedOptimizations = usedOptimizations;
+
+    /* Encode the data using the stream encoder */
+    sectorsProcessor.cleanStream(
+        encodedBuffer,
+        encodedSize,
+        inputBuffer,
+        2352 * testFiles.size(),
+        1,
+        resultedOptimizations,
+        sectorIndex,
+        testFiles.size());
+
+    if (usedOptimizations != resultedOptimizations)
+    {
+        printf("WARNING: The optimizations has changed...\n\tOld: %d\n\tNew: %d\n", usedOptimizations, resultedOptimizations);
+    }
+
+    /* The sectors were optimized correctly, so now it's time to decode and test */
+    uint64_t inputSize = encodedSize;
+    sectorsProcessor.regenerateStream(
+        outputBuffer,
+        2352 * testFiles.size(),
+        encodedBuffer,
+        inputSize,
+        1,
+        resultedOptimizations,
+        sectorIndex,
+        testFiles.size());
+
+    if (inputSize != encodedSize)
+    {
+        printf("WARNING: The encoded stream size and the readed bytes size doesn't match.\n");
+    }
+
+    int status = memcmp(inputBuffer, outputBuffer, 2352 * testFiles.size());
+    if (status != 0)
+    {
+        printf("ERROR: The original and the decoded streams doesn't match. Check the code...\n");
+
+        /* We will save both buffers to verify */
+        std::ofstream output;
+        output.open("original_stream.bin", std::ios::binary | std::ios::trunc);
+        output.write((char *)inputBuffer, 2352 * testFiles.size());
+        output.close();
+        output.open("decoded_stream.bin", std::ios::binary | std::ios::trunc);
+        output.write((char *)outputBuffer, 2352 * testFiles.size());
+        output.close();
+    }
+    else
+    {
+        printf("The stream encoding and decoding was done without any problem.\n");
+    }
+    printf("----------------------------------------------------------------------\n");
+
+    printf("Deleting the stream buffers.\n");
+    delete[] inputBuffer;
+    delete[] outputBuffer;
+    delete[] encodedBuffer;
 
     /* It's time to free the reserved buffers to avoid memory leaks */
     for (file_info x : testFiles)
@@ -154,8 +230,6 @@ int main()
             delete[] x.sector;
         }
     }
-    printf("Deleting the stream buffer.\n");
-    delete[] tBuffer;
 
     return 0;
 }
