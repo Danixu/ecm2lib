@@ -85,6 +85,7 @@ namespace ecm
         /* Create a buffer and try to encode the sectors one by one. If any of them cannot be recovered in a lossless way
            detect the optimization which has caused the error and deactivate it */
         uint8_t *buffer = new uint8_t[2352]();
+        uint32_t last_iterator = 0;
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
             /* Copy a sector into the buffer to work with it */
@@ -98,21 +99,22 @@ namespace ecm
                 /* Call the function which will determine if those optimizations are the best for that sector */
                 options = checkOptimizations(buffer, startSectorNumber + i, options, index[i]);
             }
+            last_iterator = i;
         }
         /* Delete the buffer and reset the current position */
         delete[] buffer;
 
         /* Copy the detected index to the output and clear it */
-        memccpy(sectorsIndex, index, inputSectorsCount, sectorsIndexSize);
+        memccpy(sectorsIndex, index, sectorsIndexSize, inputSectorsCount);
         delete[] index;
 
         /* Do a fast calculation to see if the stream fits the output buffer. Otherwise, return an error */
         uint64_t outputCalculatedSize = 0;
-        uint64_t sectorCalculatedSize = 0;
+        uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
-            encodedSectorSize(sectorsIndex[i], sectorCalculatedSize, options);
-            outputCalculatedSize += sectorCalculatedSize;
+            encodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            outputCalculatedSize += blockCalculatedSize;
         }
 
         if (outputCalculatedSize > outSize)
@@ -158,11 +160,11 @@ namespace ecm
 
         /* Do a fast calculation to see if the input stream fits the required data size. Otherwise, return an error */
         uint64_t inputCalculatedSize = 0;
-        uint64_t sectorCalculatedSize = 0;
+        uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < sectorsIndexSize; i++)
         {
-            encodedSectorSize(sectorsIndex[i], sectorCalculatedSize, options);
-            inputCalculatedSize += sectorCalculatedSize;
+            encodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            inputCalculatedSize += blockCalculatedSize;
         }
 
         if (inputCalculatedSize > inSize)

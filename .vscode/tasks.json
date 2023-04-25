@@ -2,13 +2,17 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe compilar test_info_extract",
+            "label": "C/C++: g++.exe compile test_info_extract",
             "command": "C:\\msys64\\mingw64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\src\\test_info_extract.cpp",
+                "${workspaceFolder}\\tests\\test_info_extract.cpp",
                 "${workspaceFolder}\\src\\ecm.cpp",
+                "-I",
+                "${workspaceFolder}\\src",
+                "-I",
+                "${workspaceFolder}\\tests",
                 "-o",
                 "${workspaceFolder}\\output\\test_info_extract.exe"
             ],
@@ -26,13 +30,17 @@
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe compilar test_encode_decode",
+            "label": "C/C++: g++.exe compile test_encode_decode",
             "command": "C:\\msys64\\mingw64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\src\\test_encode_decode.cpp",
+                "${workspaceFolder}\\tests\\test_encode_decode.cpp",
                 "${workspaceFolder}\\src\\ecm.cpp",
+                "-I",
+                "${workspaceFolder}\\src",
+                "-I",
+                "${workspaceFolder}\\tests",
                 "-o",
                 "${workspaceFolder}\\output\\test_encode_decode.exe"
             ],
@@ -47,6 +55,34 @@
                 "isDefault": false
             },
             "detail": "Depure the encoder decoder test file."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++.exe compile test_file_encode_decode",
+            "command": "C:\\msys64\\mingw64\\bin\\g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "${workspaceFolder}\\tests\\test_file_encode_decode.cpp",
+                "${workspaceFolder}\\src\\ecm.cpp",
+                "-I",
+                "${workspaceFolder}\\src",
+                "-I",
+                "${workspaceFolder}\\tests",
+                "-o",
+                "${workspaceFolder}\\output\\test_file_encode_decode.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}\\output\\"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "Depure the file encoder decoder test file."
         }
     ],
     "version": "2.0.0"

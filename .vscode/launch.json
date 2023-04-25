@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}\\output\\test_info_extract.exe",
             "cwd": "${workspaceFolder}\\output\\",
-            "preLaunchTask": "C/C++: g++.exe compilar test_info_extract"
+            "preLaunchTask": "C/C++: g++.exe compile test_info_extract"
         },
         {
             "name": "Test the encoder and decoder",
@@ -18,7 +18,15 @@
             "request": "launch",
             "program": "${workspaceFolder}\\output\\test_encode_decode.exe",
             "cwd": "${workspaceFolder}\\output\\",
-            "preLaunchTask": "C/C++: g++.exe compilar test_encode_decode"
+            "preLaunchTask": "C/C++: g++.exe compile test_encode_decode"
+        },
+        {
+            "name": "Test the file encoder and decoder",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\output\\test_file_encode_decode.exe",
+            "cwd": "${workspaceFolder}\\output\\",
+            "preLaunchTask": "C/C++: g++.exe compile test_file_encode_decode"
         }
     ]
 }
