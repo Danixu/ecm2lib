@@ -55,26 +55,24 @@ namespace ecm
      * @return int8_t int8_t Returns 0 if everything was OK. Otherwise a negative number will be returned.
      */
     int8_t processor::cleanStream(
-        uint8_t *out,
-        uint64_t &outSize,
-        uint8_t *in,
-        uint64_t inSize,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         uint32_t startSectorNumber,
         optimizations &options,
         sector_type *sectorsIndex,
-        uint32_t sectorsIndexSize,
+        size_t &sextorIndexSize,
         bool useTheBestOptimizations)
     {
         /* The input size doesn't fit in a full sectors size */
-        if (inSize % 2352)
+        if (input.buffer.size() % 2352)
         {
             return STATUS_ERROR_NO_ENOUGH_INPUT_DATA;
         }
 
-        uint32_t inputSectorsCount = inSize / 2352;
+        uint32_t inputSectorsCount = input.buffer.size() / 2352;
 
         /* Check if the index buffer have enough space and is not null */
-        if (sectorsIndex == nullptr || sectorsIndexSize < inputSectorsCount)
+        if (sextorIndexSize < inputSectorsCount)
         {
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE;
         }
@@ -86,12 +84,12 @@ namespace ecm
             uint32_t currentPos = 2352 * i;
 
             /* Try to detect the sector type */
-            sectorsIndex[i] = detect(in + currentPos);
+            sectorsIndex[i] = detect((uint8_t *)&input.buffer[currentPos]);
 
             if (useTheBestOptimizations)
             {
                 /* Call the function which will determine if those optimizations are the best for that sector */
-                options = checkOptimizations(in + currentPos, startSectorNumber + i, options, sectorsIndex[i]);
+                options = checkOptimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex[i]);
             }
         }
 
@@ -104,21 +102,21 @@ namespace ecm
             outputCalculatedSize += blockCalculatedSize;
         }
 
-        if (outputCalculatedSize > outSize)
+        if (outputCalculatedSize > (output.buffer.size() - output.current_position))
         {
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;
         }
 
         /* Optimize the stream into the output buffer */
-        uint64_t currentOutputPos = 0;
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
-            uint16_t sectorOutputSize = 0;
-            cleanSector(out + currentOutputPos, in + (2352 * i), sectorsIndex[i], sectorOutputSize, options);
+            uint16_t sectorOutputSize = output.buffer.size();
+            cleanSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex[i], sectorOutputSize, options);
             /* Add the written bytes to the current output position */
-            currentOutputPos += sectorOutputSize;
+            output.current_position += sectorOutputSize;
+            input.current_position += 2352;
         }
-        outSize = currentOutputPos;
+        sextorIndexSize = inputSectorsCount;
 
         return STATUS_OK;
     }
