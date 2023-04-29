@@ -79,41 +79,28 @@ namespace ecm
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE;
         }
 
-        /* Analize the stream to generate an index, and if useTheBestOptimizations is enabled modify the optimizations options */
-        sector_type *index = new sector_type[inputSectorsCount]();
-
         /* Create a buffer and try to encode the sectors one by one. If any of them cannot be recovered in a lossless way
            detect the optimization which has caused the error and deactivate it */
-        uint8_t *buffer = new uint8_t[2352]();
-        uint32_t last_iterator = 0;
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
-            /* Copy a sector into the buffer to work with it */
-            memccpy(buffer, in + (2352 * i), 2352, 2352);
+            uint32_t currentPos = 2352 * i;
 
             /* Try to detect the sector type */
-            index[i] = detect(buffer);
+            sectorsIndex[i] = detect(in + currentPos);
 
             if (useTheBestOptimizations)
             {
                 /* Call the function which will determine if those optimizations are the best for that sector */
-                options = checkOptimizations(buffer, startSectorNumber + i, options, index[i]);
+                options = checkOptimizations(in + currentPos, startSectorNumber + i, options, sectorsIndex[i]);
             }
-            last_iterator = i;
         }
-        /* Delete the buffer and reset the current position */
-        delete[] buffer;
-
-        /* Copy the detected index to the output and clear it */
-        memccpy(sectorsIndex, index, sectorsIndexSize, inputSectorsCount);
-        delete[] index;
 
         /* Do a fast calculation to see if the stream fits the output buffer. Otherwise, return an error */
         uint64_t outputCalculatedSize = 0;
         uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsCount; i++)
         {
-            encodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            getEncodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
             outputCalculatedSize += blockCalculatedSize;
         }
 
@@ -138,7 +125,7 @@ namespace ecm
 
     int8_t processor::regenerateStream(
         uint8_t *out,
-        uint64_t outSize,
+        uint64_t &outSize,
         uint8_t *in,
         uint64_t &inSize,
         uint32_t startSectorNumber,
@@ -163,7 +150,7 @@ namespace ecm
         uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < sectorsIndexSize; i++)
         {
-            encodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            getEncodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
             inputCalculatedSize += blockCalculatedSize;
         }
 
@@ -182,6 +169,7 @@ namespace ecm
             currentInputPos += readedBytes;
         }
         inSize = currentInputPos;
+        outSize = (sectorsIndexSize * 2352);
 
         return STATUS_OK;
     }
@@ -1181,7 +1169,7 @@ namespace ecm
         return 0;
     }
 
-    int8_t processor::encodedSectorSize(
+    int8_t processor::getEncodedSectorSize(
         sector_type type,
         size_t &output_size,
         optimizations options)

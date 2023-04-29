@@ -133,7 +133,7 @@ namespace ecm
         OO_REMOVE_SYNC = 1,                // Remove sync bytes (a.k.a first 12 bytes)
         OO_REMOVE_MSF = 1 << 1,            // Remove the MSF bytes
         OO_REMOVE_MODE = 1 << 2,           // Remove the MODE byte
-        OO_REMOVE_BLANKS = 1 << 3,         // If sector type is a GAP, remove the data
+        OO_REMOVE_BLANKS = 1 << 3,         // Remove the Mode 1 zeroed section of the sector
         OO_REMOVE_REDUNDANT_FLAG = 1 << 4, // Remove the redundant copy of FLAG bytes in Mode 2 XA sectors
         OO_REMOVE_ECC = 1 << 5,            // Remove the ECC
         OO_REMOVE_EDC = 1 << 6,            // Remove the EDC
@@ -165,7 +165,7 @@ namespace ecm
 
         int8_t regenerateStream(
             uint8_t *out,
-            uint64_t outSize,
+            uint64_t &outSize,
             uint8_t *in,
             uint64_t &inSize,
             uint32_t startSectorNumber,
@@ -193,6 +193,11 @@ namespace ecm
             uint32_t sectorNumber);
 
         uint32_t timeToSector(uint8_t *in);
+
+        static int8_t getEncodedSectorSize(
+            sector_type type,
+            size_t &output_size,
+            optimizations options);
 
     private:
         bool inline is_gap(uint8_t *sector, uint16_t length);
@@ -317,11 +322,6 @@ namespace ecm
             sector_type type,
             uint16_t current_pos,
             uint16_t &bytes_readed,
-            optimizations options);
-
-        static int8_t encodedSectorSize(
-            sector_type type,
-            size_t &output_size,
             optimizations options);
 
         // Private attributes

@@ -98,6 +98,8 @@ int main()
     bool mode2_2_Gap = false;
     bool modeX = false;
 
+    std::ofstream _oif("test.idx", std::ios::trunc | std::ios::binary);
+
     /* Read the file sector by sector and try the library */
     uint8_t *buffer = new uint8_t[2352]();
     while (currentPos < fileSize)
@@ -112,6 +114,7 @@ int main()
 
         /* Check the sector type */
         ecm::sector_type detectedType = ecmProcessor.detect(buffer);
+        _oif.write((char *)&detectedType, sizeof(detectedType));
 
         if (detectedType == ecm::ST_CDDA)
         {
@@ -334,6 +337,9 @@ int main()
         uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
         printf("WARNING: The sector in the position %d is an unkown sector type\n. Check the library!.\n", detectedPos);
     }
+
+    _fp.close();
+    _oif.close();
 
     /* Free the buffer */
     delete[] buffer;
