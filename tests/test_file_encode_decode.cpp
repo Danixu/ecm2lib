@@ -111,34 +111,28 @@ int main(int argc, char **argv)
     printf("Analizing the data to determine the best optimizations and generate the index.\n");
     for (uint32_t i = 0; i < sectors; i += BUFFERSECTORS)
     {
-        uint32_t readedData = 0;
+        uint32_t sectorsToRead = 0;
+        size_t dataToRead = 0;
         if (BUFFERSECTORS < (sectors - i))
         {
-            readedData = BUFFERSECTORS * 2352; // must equals to buffersize
+            sectorsToRead = BUFFERSECTORS; // must equals to buffersize
         }
         else
         {
-            readedData = (sectors - i) * 2352; // If there are no enough sectors to fill the buffer, just read what you have
+            sectorsToRead = (sectors - i); // If there are no enough sectors to fill the buffer, just read what you have
         }
-
         /* If the buffer size doesn't matches the readed data, then will be recreated */
         /* We first destroy the vector and then we recreate it to avoid the overhead of to copy the current data to another memory location */
-        if (readedData != inputBuffer.buffer.size())
-        {
-            inputBuffer.buffer.clear();
-            inputBuffer.buffer.resize(readedData);
-        }
+        dataToRead = sectorsToRead * 2352;
 
         /* Reset the buffer position in every iterarion */
         inputBuffer.current_position = 0;
         outputBuffer.current_position = 0;
 
         /* Read the data */
-        inputFile.read(inputBuffer.buffer.data(), readedData);
+        inputFile.read(inputBuffer.buffer.data(), dataToRead);
         /* Optimize the data and get the optimal optimizations */
-        size_t indexSize = index.buffer.size() - index.current_position;
-        ecmEncoder.cleanStream(inputBuffer, outputBuffer, 150 + i, optimizations, index.get_current_data_position(), indexSize);
-        index.current_position += indexSize;
+        ecmEncoder.cleanStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
     }
 
     /* At this point the optimizations will have changed if required, so the next step is to write the output file */
@@ -194,34 +188,28 @@ int main(int argc, char **argv)
     /* Well, the header was written and now is time to write the optimized sectors */
     for (uint32_t i = 0; i < sectors; i += BUFFERSECTORS)
     {
-        uint32_t readedData = 0;
+        uint32_t sectorsToRead = 0;
+        size_t dataToRead = 0;
         if (BUFFERSECTORS < (sectors - i))
         {
-            readedData = BUFFERSECTORS * 2352; // must equals to buffersize
+            sectorsToRead = BUFFERSECTORS; // must equals to buffersize
         }
         else
         {
-            readedData = (sectors - i) * 2352; // If there are no enough sectors to fill the buffer, just read what you have
+            sectorsToRead = (sectors - i); // If there are no enough sectors to fill the buffer, just read what you have
         }
         /* If the buffer size doesn't matches the readed data, then will be recreated */
         /* We first destroy the vector and then we recreate it to avoid the overhead of to copy the current data to another memory location */
-        if (readedData != inputBuffer.buffer.size())
-        {
-            inputBuffer.buffer.clear();
-            inputBuffer.buffer.resize(readedData);
-        }
+        dataToRead = sectorsToRead * 2352;
 
         /* Reset the buffer position in every iterarion */
         inputBuffer.current_position = 0;
         outputBuffer.current_position = 0;
 
         /* Read the data */
-        inputFile.read(inputBuffer.buffer.data(), readedData);
-        /* Optimize the data and get the optimal optimizations */
-        uint64_t indexSize = index.buffer.size() - (index.current_position + 1);
+        inputFile.read(inputBuffer.buffer.data(), dataToRead);
 
-        ecmEncoder.cleanStream(inputBuffer, outputBuffer, 150 + i, optimizations, index.get_current_data_position(), indexSize);
-        index.current_position += indexSize;
+        ecmEncoder.cleanStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
         outputFile.write(outputBuffer.buffer.data(), outputBuffer.current_position);
     }
 
@@ -258,6 +246,10 @@ int main(int argc, char **argv)
     /* Reserve the index data and read it */
     inputFile.read((char *)index.buffer.data(), sizeof(ecm::sector_type) * sectors);
 
+    /* Reset the buffers */
+    inputBuffer.buffer.resize(BUFFERSIZE);
+    outputBuffer.buffer.resize(BUFFERSIZE);
+
     uint32_t sectorsToRead = BUFFERSECTORS;
     /* Now that we have the data, it is time to decode the stream */
     for (uint32_t i = 0; i < sectors; i += sectorsToRead)
@@ -283,12 +275,9 @@ int main(int argc, char **argv)
         inputFile.read((char *)inputBuffer.buffer.data(), toRead);
 
         /* Decode the readed data */
-        uint64_t toWrite = BUFFERSIZE;
-        ecmEncoder.regenerateStream((uint8_t *)outputBuffer.buffer.data(), toWrite, (uint8_t *)inputBuffer.buffer.data(), toRead, 150 + i, optimizations, index.get_current_data_position(), sectorsToRead);
-        // printf("Output data to write toWrite: %d\n", toWrite);
-        outputBuffer.current_position = toWrite;
+        ecmEncoder.regenerateStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
+        printf("Output data to write toWrite: %d\n", outputBuffer.current_position);
 
-        index.current_position += sectorsToRead;
         /* Write the decoded data to the output file */
         outputFile.write(outputBuffer.buffer.data(), outputBuffer.current_position);
         // printf("Output data to write Decoding: %d\n", outputBuffer.current_position);

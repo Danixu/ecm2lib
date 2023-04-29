@@ -160,7 +160,7 @@ namespace ecm
             }
         }
 
-        inline T *get_current_data_position()
+        T *get_current_data_position()
         {
             /* The current position is higher than the size of the buffer */
             if (current_position > buffer.size())
@@ -169,6 +169,23 @@ namespace ecm
             }
 
             return (T *)(buffer.data() + (current_position * sizeof(T)));
+        }
+
+        /**
+         * @brief Get the items left in the buffer
+         *
+         * @return size_t The buffer items available in the buffer
+         */
+        size_t get_available_items()
+        {
+            if (current_position > buffer.size())
+            {
+                return 0;
+            }
+            else
+            {
+                return buffer.size() - current_position;
+            }
         }
 
         /**
@@ -187,16 +204,16 @@ namespace ecm
             uint64_t elements_to_move,
             bool resize_buffer = false)
         {
-            /* Check the source position */
-            if ((source + elements_to_move) > buffer.size())
-            {
-                /* The source data is out of bounds */
-                return -1;
-            }
             /* Check if source and destination are equals */
             if (source == destination)
             {
                 /* Really? */
+                return -1;
+            }
+            /* Check the source position */
+            if ((source + elements_to_move) > buffer.size())
+            {
+                /* The source data is out of bounds */
                 return -2;
             }
             /* Check if a resize is required */
@@ -239,21 +256,19 @@ namespace ecm
         int8_t cleanStream(
             data_buffer<char> &input,
             data_buffer<char> &output,
+            data_buffer<sector_type> &sectorsIndex,
+            uint32_t inputSectorsNumber,
             uint32_t startSectorNumber,
             optimizations &options,
-            sector_type *sectorsIndex,
-            size_t &sextorIndexSize,
             bool useTheBestOptimizations = true);
 
         int8_t regenerateStream(
-            uint8_t *out,
-            uint64_t &outSize,
-            uint8_t *in,
-            uint64_t &inSize,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
+            data_buffer<sector_type> &sectorsIndex,
+            uint32_t inputSectors,
             uint32_t startSectorNumber,
-            optimizations options,
-            sector_type *sectorsIndex,
-            uint32_t sectorsIndexSize);
+            optimizations options);
 
         int8_t cleanSector(
             uint8_t *out,

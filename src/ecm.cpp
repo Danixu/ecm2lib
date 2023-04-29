@@ -57,48 +57,46 @@ namespace ecm
     int8_t processor::cleanStream(
         data_buffer<char> &input,
         data_buffer<char> &output,
+        data_buffer<sector_type> &sectorsIndex,
+        uint32_t inputSectorsNumber,
         uint32_t startSectorNumber,
         optimizations &options,
-        sector_type *sectorsIndex,
-        size_t &sextorIndexSize,
         bool useTheBestOptimizations)
     {
         /* The input size doesn't fit in a full sectors size */
-        if (input.buffer.size() % 2352)
+        if (input.buffer.size() < (inputSectorsNumber * 2352))
         {
             return STATUS_ERROR_NO_ENOUGH_INPUT_DATA;
         }
 
-        uint32_t inputSectorsCount = input.buffer.size() / 2352;
-
         /* Check if the index buffer have enough space and is not null */
-        if (sextorIndexSize < inputSectorsCount)
+        if (sectorsIndex.get_available_items() < inputSectorsNumber)
         {
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE;
         }
 
         /* Create a buffer and try to encode the sectors one by one. If any of them cannot be recovered in a lossless way
            detect the optimization which has caused the error and deactivate it */
-        for (uint32_t i = 0; i < inputSectorsCount; i++)
+        for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
             uint32_t currentPos = 2352 * i;
 
             /* Try to detect the sector type */
-            sectorsIndex[i] = detect((uint8_t *)&input.buffer[currentPos]);
+            sectorsIndex.get_current_data_position()[i] = detect((uint8_t *)&input.buffer[currentPos]);
 
             if (useTheBestOptimizations)
             {
                 /* Call the function which will determine if those optimizations are the best for that sector */
-                options = checkOptimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex[i]);
+                options = checkOptimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex.get_current_data_position()[i]);
             }
         }
 
         /* Do a fast calculation to see if the stream fits the output buffer. Otherwise, return an error */
         uint64_t outputCalculatedSize = 0;
         uint64_t blockCalculatedSize = 0;
-        for (uint32_t i = 0; i < inputSectorsCount; i++)
+        for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            getEncodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            getEncodedSectorSize(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
             outputCalculatedSize += blockCalculatedSize;
         }
 
@@ -108,37 +106,35 @@ namespace ecm
         }
 
         /* Optimize the stream into the output buffer */
-        for (uint32_t i = 0; i < inputSectorsCount; i++)
+        for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
             uint16_t sectorOutputSize = output.buffer.size();
-            cleanSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex[i], sectorOutputSize, options);
+            cleanSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], sectorOutputSize, options);
             /* Add the written bytes to the current output position */
             output.current_position += sectorOutputSize;
             input.current_position += 2352;
         }
-        sextorIndexSize = inputSectorsCount;
+        sectorsIndex.current_position += inputSectorsNumber;
 
         return STATUS_OK;
     }
 
     int8_t processor::regenerateStream(
-        uint8_t *out,
-        uint64_t &outSize,
-        uint8_t *in,
-        uint64_t &inSize,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
+        data_buffer<sector_type> &sectorsIndex,
+        uint32_t inputSectorsNumber,
         uint32_t startSectorNumber,
-        optimizations options,
-        sector_type *sectorsIndex,
-        uint32_t sectorsIndexSize)
+        optimizations options)
     {
-        /* Check if the index buffer is not null */
-        if (sectorsIndex == nullptr)
+        /* Check if the index buffer is not empty */
+        if (sectorsIndex.buffer.size() == 0)
         {
             return STATUS_ERROR_WRONG_INDEX_DATA;
         }
 
         /* Check if there is enough space into the output buffer */
-        if ((sectorsIndexSize * 2352) > outSize)
+        if ((inputSectorsNumber * 2352) > output.buffer.size())
         {
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;
         }
@@ -146,28 +142,30 @@ namespace ecm
         /* Do a fast calculation to see if the input stream fits the required data size. Otherwise, return an error */
         uint64_t inputCalculatedSize = 0;
         uint64_t blockCalculatedSize = 0;
-        for (uint32_t i = 0; i < sectorsIndexSize; i++)
+        for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            getEncodedSectorSize(sectorsIndex[i], blockCalculatedSize, options);
+            getEncodedSectorSize(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
             inputCalculatedSize += blockCalculatedSize;
         }
 
-        if (inputCalculatedSize > inSize)
+        printf("Working!!: %d - %d - %d\n", input.get_available_items(), input.current_position, inputCalculatedSize);
+
+        if (inputCalculatedSize > input.get_available_items())
         {
             return STATUS_ERROR_NO_ENOUGH_INPUT_DATA;
         }
 
         /* Start to decode every sector and place it in the output buffer */
-        uint64_t currentInputPos = 0;
-        for (uint32_t i = 0; i < sectorsIndexSize; i++)
+        for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
             uint16_t readedBytes = 0;
-            regenerateSector(out + (2352 * i), in + currentInputPos, sectorsIndex[i], startSectorNumber + i, readedBytes, options);
+            regenerateSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], startSectorNumber + i, readedBytes, options);
             /* Add the readed bytes to the current input position */
-            currentInputPos += readedBytes;
+            input.current_position += readedBytes;
+            output.current_position += 2352;
         }
-        inSize = currentInputPos;
-        outSize = (sectorsIndexSize * 2352);
+
+        sectorsIndex.current_position += inputSectorsNumber;
 
         return STATUS_OK;
     }
