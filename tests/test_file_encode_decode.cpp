@@ -132,7 +132,7 @@ int main(int argc, char **argv)
         /* Read the data */
         inputFile.read(inputBuffer.buffer.data(), dataToRead);
         /* Optimize the data and get the optimal optimizations */
-        ecmEncoder.cleanStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
+        ecmEncoder.clean_stream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
     }
 
     /* At this point the optimizations will have changed if required, so the next step is to write the output file */
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
         /* Read the data */
         inputFile.read(inputBuffer.buffer.data(), dataToRead);
 
-        ecmEncoder.cleanStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
+        ecmEncoder.clean_stream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
         outputFile.write(outputBuffer.buffer.data(), outputBuffer.current_position);
     }
 
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
         for (uint32_t j = 0; j < sectorsToRead; j++)
         {
             uint64_t calculatedSectorSize = 0;
-            ecmEncoder.getEncodedSectorSize(index.buffer[i + j], calculatedSectorSize, optimizations);
+            ecmEncoder.get_encoded_sector_size(index.buffer[i + j], calculatedSectorSize, optimizations);
             toRead += calculatedSectorSize;
         }
 
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
         inputFile.read((char *)inputBuffer.buffer.data(), toRead);
 
         /* Decode the readed data */
-        ecmEncoder.regenerateStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
+        ecmEncoder.regenerate_stream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
 
         /* Write the decoded data to the output file */
         outputFile.write(outputBuffer.buffer.data(), outputBuffer.current_position);

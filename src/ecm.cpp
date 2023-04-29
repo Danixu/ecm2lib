@@ -54,7 +54,7 @@ namespace ecm
      * @param useTheBestOptimizations (bool) Check if the data integrity of the sectors can be maintained with the desired optimizations. If not, the "options" argument will be updated with the best optimizations for the stream.
      * @return int8_t int8_t Returns 0 if everything was OK. Otherwise a negative number will be returned.
      */
-    status_code processor::cleanStream(
+    status_code processor::clean_stream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -87,7 +87,7 @@ namespace ecm
             if (useTheBestOptimizations)
             {
                 /* Call the function which will determine if those optimizations are the best for that sector */
-                options = checkOptimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex.get_current_data_position()[i]);
+                options = check_optimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex.get_current_data_position()[i]);
             }
         }
 
@@ -96,7 +96,7 @@ namespace ecm
         uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            getEncodedSectorSize(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
+            get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
             outputCalculatedSize += blockCalculatedSize;
         }
 
@@ -108,14 +108,14 @@ namespace ecm
         /* Optimize the stream into the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            cleanSector(input, output, *sectorsIndex.get_current_data_position(), options);
+            clean_sector(input, output, *sectorsIndex.get_current_data_position(), options);
             sectorsIndex.current_position++;
         }
 
         return STATUS_OK;
     }
 
-    status_code processor::regenerateStream(
+    status_code processor::regenerate_stream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -140,7 +140,7 @@ namespace ecm
         uint64_t blockCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            getEncodedSectorSize(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
+            get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
             inputCalculatedSize += blockCalculatedSize;
         }
 
@@ -153,7 +153,7 @@ namespace ecm
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
             uint16_t readedBytes = 0;
-            regenerateSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], startSectorNumber + i, readedBytes, options);
+            regenerate_sector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], startSectorNumber + i, readedBytes, options);
             /* Add the readed bytes to the current input position */
             input.current_position += readedBytes;
             output.current_position += 2352;
@@ -174,7 +174,7 @@ namespace ecm
      * @param options (optimizations) Optimizations that will be used in this sector
      * @return int8_t Returns 0 if everything was Ok, otherwise will return a negative number.
      */
-    status_code processor::cleanSector(
+    status_code processor::clean_sector(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -186,7 +186,7 @@ namespace ecm
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return_code = cleanSectorCDDA((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_cdda((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
@@ -194,34 +194,34 @@ namespace ecm
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return_code = cleanSectorMode1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_mode_1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return_code = cleanSectorMode2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_mode_2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
 
         case ST_MODE2_1:
         case ST_MODE2_1_GAP:
-            return_code = cleanSectorMode2XA1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_mode_2_xa_1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
 
         case ST_MODE2_2:
         case ST_MODE2_2_GAP:
-            return_code = cleanSectorMode2XA2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_mode_2_xa_2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
 
         case ST_MODEX:
-            return_code = cleanSectorModeX((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            return_code = clean_sector_mode_X((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
@@ -241,7 +241,7 @@ namespace ecm
      * @param options
      * @return int8_t
      */
-    status_code processor::regenerateSector(
+    status_code processor::regenerate_sector(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -275,7 +275,7 @@ namespace ecm
             }
             else
             {
-                sectorToTime(out + currentPos, sectorNumber);
+                sector_to_time(out + currentPos, sectorNumber);
             }
             currentPos += 0x03;
         }
@@ -285,27 +285,27 @@ namespace ecm
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return regenerateSectorCDDA(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_cdda(out, sector, type, currentPos, bytesReaded, options);
 
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return regenerateSectorMode1(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_1(out, sector, type, currentPos, bytesReaded, options);
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return regenerateSectorMode2(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2(out, sector, type, currentPos, bytesReaded, options);
 
         case ST_MODE2_1:
         case ST_MODE2_1_GAP:
-            return regenerateSectorMode2XA1(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2_xa_1(out, sector, type, currentPos, bytesReaded, options);
 
         case ST_MODE2_2:
         case ST_MODE2_2_GAP:
-            return regenerateSectorMode2XA2(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2_xa_2(out, sector, type, currentPos, bytesReaded, options);
 
         case ST_MODEX:
-            return regenerateSectorModeX(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_X(out, sector, type, currentPos, bytesReaded, options);
         }
 
         return STATUS_OK;
@@ -362,11 +362,11 @@ namespace ecm
             {
                 //  The sector is surelly MODE1 but we will check the EDC
                 if (
-                    eccChecksector(
+                    ecc_check_sector(
                         sector + 0xC,
                         sector + 0x10,
                         sector + 0x81C) &&
-                    edcCompute(0, sector, 0x810) == get32lsb(sector + 0x810))
+                    edc_compute(0, sector, 0x810) == get32lsb(sector + 0x810))
                 {
                     if (is_gap(sector + 0x010, 0x800))
                     {
@@ -390,8 +390,8 @@ namespace ecm
                 // Might be Mode 2, Form 1
                 //
                 if (
-                    eccChecksector(zeroaddress, sector + 0x010, sector + 0x81C) &&
-                    edcCompute(0, sector + 0x010, 0x808) == get32lsb(sector + 0x818))
+                    ecc_check_sector(zeroaddress, sector + 0x010, sector + 0x81C) &&
+                    edc_compute(0, sector + 0x010, 0x808) == get32lsb(sector + 0x818))
                 {
                     if (is_gap(sector + 0x018, 0x800))
                     {
@@ -406,7 +406,7 @@ namespace ecm
                 // Might be Mode 2, Form 2
                 //
                 if (
-                    edcCompute(0, sector + 0x010, 0x91C) == get32lsb(sector + 0x92C))
+                    edc_compute(0, sector + 0x010, 0x91C) == get32lsb(sector + 0x92C))
                 {
                     if (is_gap(sector + 0x018, 0x914))
                     {
@@ -448,7 +448,7 @@ namespace ecm
         return ST_UNKNOWN;
     }
 
-    optimizations processor::checkOptimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type sectorType)
+    optimizations processor::check_optimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type sectorType)
     {
         if (sectorType & ST_CDDA_GAP || sectorType & ST_CDDA)
         {
@@ -477,7 +477,7 @@ namespace ecm
             /* The sync part is always used to detect the sector, so always will be OK */
             /* We will chech the MSF part */
             uint8_t generatedMSF[3] = {0};
-            sectorToTime(generatedMSF, sectorNumber);
+            sector_to_time(generatedMSF, sectorNumber);
 
             if (sector[0x0C] != generatedMSF[0] ||
                 sector[0x0D] != generatedMSF[1] ||
@@ -524,7 +524,7 @@ namespace ecm
         dest[3] = (uint8_t)(value >> 24);
     }
 
-    inline uint32_t processor::edcCompute(
+    inline uint32_t processor::edc_compute(
         uint32_t edc,
         const uint8_t *src,
         size_t size)
@@ -536,7 +536,7 @@ namespace ecm
         return edc;
     }
 
-    int8_t processor::eccCheckpq(
+    int8_t processor::ecc_checkpq(
         const uint8_t *address,
         const uint8_t *data,
         size_t majorCount,
@@ -584,7 +584,7 @@ namespace ecm
         return 1;
     }
 
-    void processor::eccWritepq(
+    void processor::ecc_write_pq(
         const uint8_t *address,
         const uint8_t *data,
         size_t majorCount,
@@ -627,28 +627,28 @@ namespace ecm
         }
     }
 
-    int8_t processor::eccChecksector(
+    int8_t processor::ecc_check_sector(
         const uint8_t *address,
         const uint8_t *data,
         const uint8_t *ecc)
     {
-        return eccCheckpq(address, data, 86, 24, 2, 86, ecc) &&       // P
-               eccCheckpq(address, data, 52, 43, 86, 88, ecc + 0xAC); // Q
+        return ecc_checkpq(address, data, 86, 24, 2, 86, ecc) &&       // P
+               ecc_checkpq(address, data, 52, 43, 86, 88, ecc + 0xAC); // Q
     }
 
-    void processor::eccWritesector(
+    void processor::ecc_write_sector(
         const uint8_t *address,
         const uint8_t *data,
         uint8_t *ecc)
     {
-        eccWritepq(address, data, 86, 24, 2, 86, ecc);         // P
-        eccWritepq(address, data, 52, 43, 86, 88, ecc + 0xAC); // Q
+        ecc_write_pq(address, data, 86, 24, 2, 86, ecc);         // P
+        ecc_write_pq(address, data, 52, 43, 86, 88, ecc + 0xAC); // Q
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    status_code processor::cleanSectorCDDA(
+    status_code processor::clean_sector_cdda(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -666,7 +666,7 @@ namespace ecm
     }
 
     // Mode 1
-    status_code processor::cleanSectorMode1(
+    status_code processor::clean_sector_mode_1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -720,7 +720,7 @@ namespace ecm
     }
 
     // Mode 2
-    status_code processor::cleanSectorMode2(
+    status_code processor::clean_sector_mode_2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -756,7 +756,7 @@ namespace ecm
     }
 
     // Mode 2 XA 1
-    status_code processor::cleanSectorMode2XA1(
+    status_code processor::clean_sector_mode_2_xa_1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -815,7 +815,7 @@ namespace ecm
     }
 
     // Mode 2 XA 1
-    status_code processor::cleanSectorMode2XA2(
+    status_code processor::clean_sector_mode_2_xa_2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -868,7 +868,7 @@ namespace ecm
     }
 
     // Unknown data mode
-    status_code processor::cleanSectorModeX(
+    status_code processor::clean_sector_mode_X(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -894,7 +894,7 @@ namespace ecm
         return STATUS_OK;
     }
 
-    status_code processor::regenerateSectorCDDA(
+    status_code processor::regenerate_sector_cdda(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -917,7 +917,7 @@ namespace ecm
     }
 
     // Mode 1
-    status_code processor::regenerateSectorMode1(
+    status_code processor::regenerate_sector_mode_1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -955,7 +955,7 @@ namespace ecm
         }
         else
         {
-            put32lsb(out + currentPos, edcCompute(0, out, 0x810));
+            put32lsb(out + currentPos, edc_compute(0, out, 0x810));
         }
         currentPos += 0x04;
         // Zeroed bytes
@@ -977,7 +977,7 @@ namespace ecm
         }
         else
         {
-            eccWritesector(out + 0xC, out + 0x10, out + currentPos);
+            ecc_write_sector(out + 0xC, out + 0x10, out + currentPos);
         }
         currentPos += 0x114;
 
@@ -985,7 +985,7 @@ namespace ecm
     }
 
     // Mode 2
-    status_code processor::regenerateSectorMode2(
+    status_code processor::regenerate_sector_mode_2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1020,7 +1020,7 @@ namespace ecm
     }
 
     // Mode 2 XA 1
-    status_code processor::regenerateSectorMode2XA1(
+    status_code processor::regenerate_sector_mode_2_xa_1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1074,7 +1074,7 @@ namespace ecm
         }
         else
         {
-            put32lsb(out + currentPos, edcCompute(0, out + 0x10, 0x808));
+            put32lsb(out + currentPos, edc_compute(0, out + 0x10, 0x808));
         }
         currentPos += 0x04;
         // ECC bytes
@@ -1085,7 +1085,7 @@ namespace ecm
         }
         else
         {
-            eccWritesector(zeroaddress, out + 0x10, out + currentPos);
+            ecc_write_sector(zeroaddress, out + 0x10, out + currentPos);
         }
         currentPos += 0x114;
 
@@ -1093,7 +1093,7 @@ namespace ecm
     }
 
     // Mode 2 XA 2
-    status_code processor::regenerateSectorMode2XA2(
+    status_code processor::regenerate_sector_mode_2_xa_2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1147,7 +1147,7 @@ namespace ecm
         }
         else
         {
-            put32lsb(out + currentPos, edcCompute(0, out + 0x10, 0x91C));
+            put32lsb(out + currentPos, edc_compute(0, out + 0x10, 0x91C));
         }
         currentPos += 0x04;
 
@@ -1155,7 +1155,7 @@ namespace ecm
     }
 
     // Data sector unknown mode
-    status_code processor::regenerateSectorModeX(
+    status_code processor::regenerate_sector_mode_X(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1171,7 +1171,7 @@ namespace ecm
         return STATUS_OK;
     }
 
-    status_code processor::getEncodedSectorSize(
+    status_code processor::get_encoded_sector_size(
         sector_type type,
         size_t &output_size,
         optimizations options)
@@ -1353,7 +1353,7 @@ namespace ecm
         return STATUS_OK;
     }
 
-    void inline processor::sectorToTime(
+    void inline processor::sector_to_time(
         uint8_t *out,
         uint32_t sectorNumber)
     {
@@ -1374,7 +1374,7 @@ namespace ecm
      * @param in The buffer with the three MSF bytes
      * @return uint32_t The value of the MSF in sector number
      */
-    uint32_t processor::timeToSector(uint8_t *in)
+    uint32_t processor::time_to_sector(uint8_t *in)
     {
         uint16_t minutes = (in[0] / 16 * 10) + (in[0] % 16);
         uint16_t seconds = (in[1] / 16 * 10) + (in[1] % 16);
