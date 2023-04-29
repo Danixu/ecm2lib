@@ -276,7 +276,6 @@ int main(int argc, char **argv)
 
         /* Decode the readed data */
         ecmEncoder.regenerateStream(inputBuffer, outputBuffer, index, sectorsToRead, 150 + i, optimizations);
-        printf("Output data to write toWrite: %d\n", outputBuffer.current_position);
 
         /* Write the decoded data to the output file */
         outputFile.write(outputBuffer.buffer.data(), outputBuffer.current_position);

@@ -54,7 +54,7 @@ namespace ecm
      * @param useTheBestOptimizations (bool) Check if the data integrity of the sectors can be maintained with the desired optimizations. If not, the "options" argument will be updated with the best optimizations for the stream.
      * @return int8_t int8_t Returns 0 if everything was OK. Otherwise a negative number will be returned.
      */
-    int8_t processor::cleanStream(
+    status_code processor::cleanStream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -108,18 +108,14 @@ namespace ecm
         /* Optimize the stream into the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            uint16_t sectorOutputSize = output.buffer.size();
-            cleanSector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], sectorOutputSize, options);
-            /* Add the written bytes to the current output position */
-            output.current_position += sectorOutputSize;
-            input.current_position += 2352;
+            cleanSector(input, output, *sectorsIndex.get_current_data_position(), options);
+            sectorsIndex.current_position++;
         }
-        sectorsIndex.current_position += inputSectorsNumber;
 
         return STATUS_OK;
     }
 
-    int8_t processor::regenerateStream(
+    status_code processor::regenerateStream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -147,8 +143,6 @@ namespace ecm
             getEncodedSectorSize(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
             inputCalculatedSize += blockCalculatedSize;
         }
-
-        printf("Working!!: %d - %d - %d\n", input.get_available_items(), input.current_position, inputCalculatedSize);
 
         if (inputCalculatedSize > input.get_available_items())
         {
@@ -180,48 +174,60 @@ namespace ecm
      * @param options (optimizations) Optimizations that will be used in this sector
      * @return int8_t Returns 0 if everything was Ok, otherwise will return a negative number.
      */
-    int8_t processor::cleanSector(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::cleanSector(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
-        outputSize = 0;
+        uint16_t outputSize = 0;
+        status_code return_code = STATUS_OK;
         switch (type)
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return cleanSectorCDDA(out, sector, type, outputSize, options);
+            return_code = cleanSectorCDDA((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
 
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return cleanSectorMode1(out, sector, type, outputSize, options);
+            return_code = cleanSectorMode1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return cleanSectorMode2(out, sector, type, outputSize, options);
+            return_code = cleanSectorMode2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
 
         case ST_MODE2_1:
         case ST_MODE2_1_GAP:
-            return cleanSectorMode2XA1(out, sector, type, outputSize, options);
+            return_code = cleanSectorMode2XA1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
 
         case ST_MODE2_2:
         case ST_MODE2_2_GAP:
-            return cleanSectorMode2XA2(out, sector, type, outputSize, options);
+            return_code = cleanSectorMode2XA2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
 
         case ST_MODEX:
-            return cleanSectorModeX(out, sector, type, outputSize, options);
+            return_code = cleanSectorModeX((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
             break;
         }
 
-        return 0;
+        return return_code;
     }
 
     /**
@@ -235,7 +241,7 @@ namespace ecm
      * @param options
      * @return int8_t
      */
-    int8_t processor::regenerateSector(
+    status_code processor::regenerateSector(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -302,7 +308,7 @@ namespace ecm
             return regenerateSectorModeX(out, sector, type, currentPos, bytesReaded, options);
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     /**
@@ -642,7 +648,7 @@ namespace ecm
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    int8_t processor::cleanSectorCDDA(
+    status_code processor::cleanSectorCDDA(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -656,11 +662,11 @@ namespace ecm
             outputSize = 2352;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 1
-    int8_t processor::cleanSectorMode1(
+    status_code processor::cleanSectorMode1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -710,11 +716,11 @@ namespace ecm
             outputSize += 0x114;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2
-    int8_t processor::cleanSectorMode2(
+    status_code processor::cleanSectorMode2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -746,11 +752,11 @@ namespace ecm
             outputSize += 0x920;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2 XA 1
-    int8_t processor::cleanSectorMode2XA1(
+    status_code processor::cleanSectorMode2XA1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -805,11 +811,11 @@ namespace ecm
             outputSize += 0x114;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2 XA 1
-    int8_t processor::cleanSectorMode2XA2(
+    status_code processor::cleanSectorMode2XA2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -858,11 +864,11 @@ namespace ecm
             outputSize += 0x04;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Unknown data mode
-    int8_t processor::cleanSectorModeX(
+    status_code processor::cleanSectorModeX(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -885,10 +891,10 @@ namespace ecm
         memcpy(out + outputSize, sector + 0x0F, 0x921);
         outputSize += 0x921;
 
-        return 0;
+        return STATUS_OK;
     }
 
-    int8_t processor::regenerateSectorCDDA(
+    status_code processor::regenerateSectorCDDA(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -907,11 +913,11 @@ namespace ecm
             memset(out, 0x00, 2352);
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 1
-    int8_t processor::regenerateSectorMode1(
+    status_code processor::regenerateSectorMode1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -975,11 +981,11 @@ namespace ecm
         }
         currentPos += 0x114;
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2
-    int8_t processor::regenerateSectorMode2(
+    status_code processor::regenerateSectorMode2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1010,11 +1016,11 @@ namespace ecm
         }
         currentPos += 0x920;
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2 XA 1
-    int8_t processor::regenerateSectorMode2XA1(
+    status_code processor::regenerateSectorMode2XA1(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1083,11 +1089,11 @@ namespace ecm
         }
         currentPos += 0x114;
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Mode 2 XA 2
-    int8_t processor::regenerateSectorMode2XA2(
+    status_code processor::regenerateSectorMode2XA2(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1145,11 +1151,11 @@ namespace ecm
         }
         currentPos += 0x04;
 
-        return 0;
+        return STATUS_OK;
     }
 
     // Data sector unknown mode
-    int8_t processor::regenerateSectorModeX(
+    status_code processor::regenerateSectorModeX(
         uint8_t *out,
         uint8_t *sector,
         sector_type type,
@@ -1162,10 +1168,10 @@ namespace ecm
         currentPos += 0x921;
         bytesReaded = 0x921;
 
-        return 0;
+        return STATUS_OK;
     }
 
-    int8_t processor::getEncodedSectorSize(
+    status_code processor::getEncodedSectorSize(
         sector_type type,
         size_t &output_size,
         optimizations options)
@@ -1344,7 +1350,7 @@ namespace ecm
             break;
         }
 
-        return 0;
+        return STATUS_OK;
     }
 
     void inline processor::sectorToTime(

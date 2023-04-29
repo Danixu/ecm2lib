@@ -94,7 +94,7 @@
 
 namespace ecm
 {
-    enum return_code
+    enum status_code
     {
         STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE = -4,
         STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE,
@@ -253,7 +253,7 @@ namespace ecm
 
         sector_type detect(uint8_t *sector);
 
-        int8_t cleanStream(
+        status_code cleanStream(
             data_buffer<char> &input,
             data_buffer<char> &output,
             data_buffer<sector_type> &sectorsIndex,
@@ -262,7 +262,7 @@ namespace ecm
             optimizations &options,
             bool useTheBestOptimizations = true);
 
-        int8_t regenerateStream(
+        status_code regenerateStream(
             data_buffer<char> &input,
             data_buffer<char> &output,
             data_buffer<sector_type> &sectorsIndex,
@@ -270,14 +270,13 @@ namespace ecm
             uint32_t startSectorNumber,
             optimizations options);
 
-        int8_t cleanSector(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code cleanSector(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
 
-        int8_t regenerateSector(
+        status_code regenerateSector(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -291,7 +290,7 @@ namespace ecm
 
         uint32_t timeToSector(uint8_t *in);
 
-        static int8_t getEncodedSectorSize(
+        static status_code getEncodedSectorSize(
             sector_type type,
             size_t &output_size,
             optimizations options);
@@ -331,49 +330,49 @@ namespace ecm
             uint8_t *ecc);
 
         // sector cleaner CDDA
-        int8_t cleanSectorCDDA(
+        status_code cleanSectorCDDA(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 1
-        int8_t cleanSectorMode1(
+        status_code cleanSectorMode1(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2
-        int8_t cleanSectorMode2(
+        status_code cleanSectorMode2(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2 XA 1
-        int8_t cleanSectorMode2XA1(
+        status_code cleanSectorMode2XA1(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2 XA 1
-        int8_t cleanSectorMode2XA2(
+        status_code cleanSectorMode2XA2(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector cleaner Unknown Mode
-        int8_t cleanSectorModeX(
+        status_code cleanSectorModeX(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
             uint16_t &output_size,
             optimizations options);
         // sector regenerator CDDA
-        int8_t regenerateSectorCDDA(
+        status_code regenerateSectorCDDA(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -381,7 +380,7 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 1
-        int8_t regenerateSectorMode1(
+        status_code regenerateSectorMode1(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -389,7 +388,7 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2
-        int8_t regenerateSectorMode2(
+        status_code regenerateSectorMode2(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -397,7 +396,7 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2 XA 1
-        int8_t regenerateSectorMode2XA1(
+        status_code regenerateSectorMode2XA1(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -405,7 +404,7 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2 XA 2
-        int8_t regenerateSectorMode2XA2(
+        status_code regenerateSectorMode2XA2(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
@@ -413,7 +412,7 @@ namespace ecm
             uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Unknown mode
-        int8_t regenerateSectorModeX(
+        status_code regenerateSectorModeX(
             uint8_t *out,
             uint8_t *sector,
             sector_type type,
