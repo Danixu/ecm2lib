@@ -380,6 +380,12 @@ namespace ecm
             {
                 //  The sector is MODE2, and now we will detect what kind
                 //
+                /* First we will check if the sector is a gap, because can be confused with a ST_MODE2_1_GAP */
+                if (is_gap(sector + 0x010, 0x920))
+                {
+                    return ST_MODE2_GAP;
+                }
+
                 // Might be Mode 2, Form 1
                 //
                 if (
@@ -411,15 +417,8 @@ namespace ecm
                     }
                 }
 
-                // Checking if sector is MODE 2 without XA
-                if (is_gap(sector + 0x010, 0x920))
-                {
-                    return ST_MODE2_GAP;
-                }
-                else
-                {
-                    return ST_MODE2;
-                }
+                /* If doesn't fit in any of the above modes, then should be just a MODE2 sector which is full of data */
+                return ST_MODE2;
             }
 
             // Data sector detected but was not possible to determine the mode. Maybe is a copy protection sector.
