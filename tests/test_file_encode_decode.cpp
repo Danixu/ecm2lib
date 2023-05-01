@@ -126,8 +126,8 @@ int main(int argc, char **argv)
         dataToRead = sectorsToRead * 2352;
 
         /* Reset the buffer position in every iterarion */
-        inputBuffer.current_position = 0;
-        outputBuffer.current_position = 0;
+        inputBuffer.reset_positions();
+        outputBuffer.reset_positions();
 
         /* Read the data */
         inputFile.read(inputBuffer.buffer.data(), dataToRead);
@@ -203,8 +203,8 @@ int main(int argc, char **argv)
         dataToRead = sectorsToRead * 2352;
 
         /* Reset the buffer position in every iterarion */
-        inputBuffer.current_position = 0;
-        outputBuffer.current_position = 0;
+        inputBuffer.reset_positions();
+        outputBuffer.reset_positions();
 
         /* Read the data */
         inputFile.read(inputBuffer.buffer.data(), dataToRead);
@@ -268,8 +268,8 @@ int main(int argc, char **argv)
         }
 
         /* Reset the buffer position in every iterarion */
-        inputBuffer.current_position = 0;
-        outputBuffer.current_position = 0;
+        inputBuffer.reset_positions();
+        outputBuffer.reset_positions();
 
         /* Read the calculated size */
         inputFile.read((char *)inputBuffer.buffer.data(), toRead);

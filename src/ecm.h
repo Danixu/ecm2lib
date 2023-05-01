@@ -88,6 +88,7 @@
 
 #include <cstddef>
 #include <stdint.h>
+#include <cstring>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -151,6 +152,7 @@ namespace ecm
     {
         std::vector<T> buffer;
         size_t current_position = 0;
+        size_t start_position = 0;
 
         data_buffer(size_t buffer_size = 0)
         {
@@ -169,6 +171,33 @@ namespace ecm
             }
 
             return (T *)(buffer.data() + (current_position * sizeof(T)));
+        }
+
+        T *get_start_data_position()
+        {
+            /* The current position is higher than the size of the buffer */
+            if (start_position > buffer.size())
+            {
+                return nullptr;
+            }
+
+            return (T *)(buffer.data() + (start_position * sizeof(T)));
+        }
+
+        void update_start_position()
+        {
+            start_position = current_position;
+        }
+
+        void reset_positions()
+        {
+            start_position = 0;
+            current_position = 0;
+        }
+
+        void revert_current_position()
+        {
+            current_position = start_position;
         }
 
         /**
@@ -278,11 +307,10 @@ namespace ecm
             optimizations options);
 
         status_code regenerate_sector(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
             uint32_t sector_number,
-            uint16_t &bytes_readed,
             optimizations options);
 
         void inline sector_to_time(
@@ -384,51 +412,39 @@ namespace ecm
             optimizations options);
         // sector regenerator CDDA
         status_code regenerate_sector_cdda(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 1
         status_code regenerate_sector_mode_1(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2
         status_code regenerate_sector_mode_2(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2 XA 1
         status_code regenerate_sector_mode_2_xa_1(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Mode 2 XA 2
         status_code regenerate_sector_mode_2_xa_2(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
         //  sector regenerator Unknown mode
         status_code regenerate_sector_mode_X(
-            uint8_t *out,
-            uint8_t *sector,
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t current_pos,
-            uint16_t &bytes_readed,
             optimizations options);
 
         // Private attributes

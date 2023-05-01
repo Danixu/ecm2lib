@@ -100,7 +100,7 @@ namespace ecm
             outputCalculatedSize += blockCalculatedSize;
         }
 
-        if (outputCalculatedSize > (output.buffer.size() - output.current_position))
+        if (outputCalculatedSize > output.get_available_items())
         {
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;
         }
@@ -152,11 +152,7 @@ namespace ecm
         /* Start to decode every sector and place it in the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            uint16_t readedBytes = 0;
-            regenerate_sector((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), sectorsIndex.get_current_data_position()[i], startSectorNumber + i, readedBytes, options);
-            /* Add the readed bytes to the current input position */
-            input.current_position += readedBytes;
-            output.current_position += 2352;
+            regenerate_sector(input, output, sectorsIndex.get_current_data_position()[i], startSectorNumber + i, options);
         }
 
         sectorsIndex.current_position += inputSectorsNumber;
@@ -242,42 +238,39 @@ namespace ecm
      * @return int8_t
      */
     status_code processor::regenerate_sector(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint32_t sectorNumber,
-        uint16_t &bytesReaded,
+        uint32_t sector_number,
         optimizations options)
     {
-        bytesReaded = 0;
-        uint16_t currentPos = 0;
         // sync and address bytes in data sectors, common to almost all types
         if (type >= ST_MODE1)
         {
             // SYNC bytes
             if (!(options & OO_REMOVE_SYNC))
             {
-                memcpy(out, sector, 12);
-                bytesReaded += 0x0C;
+                std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+                input.current_position += 0x0C;
             }
             else
             {
-                out[0] = 0x00;
-                memset(out + 1, 0xFF, 10);
-                out[11] = 0x00;
+                output.get_current_data_position()[0] = 0x00;
+                std::memset(output.get_current_data_position() + 1, 0xFF, 0x0A);
+                output.get_current_data_position()[11] = 0x00;
             }
-            currentPos += 0x0C;
+            output.current_position += 0x0C;
             // Address bytes
             if (!(options & OO_REMOVE_MSF))
             {
-                memcpy(out + currentPos, sector + bytesReaded, 0x03);
-                bytesReaded += 0x03;
+                std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+                input.current_position += 0x03;
             }
             else
             {
-                sector_to_time(out + currentPos, sectorNumber);
+                sector_to_time((uint8_t *)output.get_current_data_position(), sector_number);
             }
-            currentPos += 0x03;
+            output.current_position += 0x03;
         }
 
         // The rest of the sector
@@ -285,27 +278,27 @@ namespace ecm
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return regenerate_sector_cdda(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_cdda(input, output, type, options);
 
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return regenerate_sector_mode_1(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_1(input, output, type, options);
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return regenerate_sector_mode_2(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2(input, output, type, options);
 
         case ST_MODE2_1:
         case ST_MODE2_1_GAP:
-            return regenerate_sector_mode_2_xa_1(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2_xa_1(input, output, type, options);
 
         case ST_MODE2_2:
         case ST_MODE2_2_GAP:
-            return regenerate_sector_mode_2_xa_2(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_2_xa_2(input, output, type, options);
 
         case ST_MODEX:
-            return regenerate_sector_mode_X(out, sector, type, currentPos, bytesReaded, options);
+            return regenerate_sector_mode_X(input, output, type, options);
         }
 
         return STATUS_OK;
@@ -450,13 +443,13 @@ namespace ecm
 
     optimizations processor::check_optimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type sectorType)
     {
-        if (sectorType & ST_CDDA_GAP || sectorType & ST_CDDA)
+        if (sectorType == ST_CDDA_GAP || sectorType == ST_CDDA)
         {
-            // Audio optimizations are always right
+            // Audio is a raw sector which will never be optimized, so global optimizations must not change.
             return options;
         }
 
-        if (sectorType & ST_UNKNOWN)
+        if (sectorType == ST_UNKNOWN)
         {
             // Unknown sector will not be optimized, so the options will not be affected
             return options;
@@ -465,14 +458,15 @@ namespace ecm
         optimizations newOptions = options;
 
         /* Common data optimizations check */
-        if (newOptions & OO_REMOVE_MSF && (sectorType && ST_MODEX ||
-                                           sectorType && ST_MODE1 ||
-                                           sectorType && ST_MODE1_GAP ||
-                                           sectorType && ST_MODE2 ||
-                                           sectorType && ST_MODE2_1 ||
-                                           sectorType && ST_MODE2_1_GAP ||
-                                           sectorType && ST_MODE2_2 ||
-                                           sectorType && ST_MODE2_2_GAP))
+        if (newOptions & OO_REMOVE_MSF && (sectorType == ST_MODEX ||
+                                           sectorType == ST_MODE1 ||
+                                           sectorType == ST_MODE1_RAW ||
+                                           sectorType == ST_MODE1_GAP ||
+                                           sectorType == ST_MODE2 ||
+                                           sectorType == ST_MODE2_1 ||
+                                           sectorType == ST_MODE2_1_GAP ||
+                                           sectorType == ST_MODE2_2 ||
+                                           sectorType == ST_MODE2_2_GAP))
         {
             /* The sync part is always used to detect the sector, so always will be OK */
             /* We will chech the MSF part */
@@ -895,278 +889,273 @@ namespace ecm
     }
 
     status_code processor::regenerate_sector_cdda(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // CDDA are directly copied
         if (type == ST_CDDA || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out, sector, 2352);
-            bytesReaded = 2352;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 2352);
+            input.current_position += 2352;
         }
         else
         {
-            memset(out, 0x00, 2352);
+            std::memset(output.get_current_data_position(), 0x00, 2352);
         }
+        output.current_position += 2352;
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 1
     status_code processor::regenerate_sector_mode_1(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x01);
-            bytesReaded += 0x01;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            input.current_position += 0x01;
         }
         else
         {
-            out[currentPos] = 0x01;
+            *output.get_current_data_position() = 0x01;
         }
-        currentPos += 0x01;
+        output.current_position += 0x01;
         // Data bytes
         if (type == ST_MODE1 || type == ST_MODE1_RAW || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x800);
-            bytesReaded += 0x800;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x800);
+            input.current_position += 0x800;
         }
         else
         {
-            memset(out + currentPos, 0x00, 0x800);
+            std::memset(output.get_current_data_position(), 0x00, 0x800);
         }
-        currentPos += 0x800;
+        output.current_position += 0x800;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC) || type == ST_MODE1_RAW)
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x04);
-            bytesReaded += 0x04;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
         }
         else
         {
-            put32lsb(out + currentPos, edc_compute(0, out, 0x810));
+            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position(), 0x810));
         }
-        currentPos += 0x04;
+        output.current_position += 0x04;
         // Zeroed bytes
         if (!(options & OO_REMOVE_BLANKS))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x08);
-            bytesReaded += 0x08;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            input.current_position += 0x08;
         }
         else
         {
-            memset(out + currentPos, 0x00, 0x08);
+            std::memset(output.get_current_data_position(), 0x00, 0x08);
         }
-        currentPos += 0x08;
+        output.current_position += 0x08;
         // ECC bytes
         if (!(options & OO_REMOVE_ECC) || type == ST_MODE1_RAW)
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x114);
-            bytesReaded += 0x114;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x114);
+            input.current_position += 0x114;
         }
         else
         {
-            ecc_write_sector(out + 0xC, out + 0x10, out + currentPos);
+            ecc_write_sector((uint8_t *)output.get_start_data_position() + 0xC, (uint8_t *)output.get_start_data_position() + 0x10, (uint8_t *)output.get_current_data_position());
         }
-        currentPos += 0x114;
+        output.current_position += 0x114;
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2
     status_code processor::regenerate_sector_mode_2(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x01);
-            bytesReaded += 0x01;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            input.current_position += 0x01;
         }
         else
         {
-            out[currentPos] = 0x02;
+            *output.get_current_data_position() = 0x02;
         }
-        currentPos += 0x01;
+        output.current_position += 0x01;
         // Data bytes
         if (type == ST_MODE2 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x920);
-            bytesReaded += 0x920;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x920);
+            input.current_position += 0x920;
         }
         else
         {
-            memset(out + currentPos, 0x00, 0x920);
+            memset(output.get_current_data_position(), 0x00, 0x920);
         }
-        currentPos += 0x920;
+        output.current_position += 0x920;
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2 XA 1
     status_code processor::regenerate_sector_mode_2_xa_1(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x01);
-            bytesReaded += 0x01;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            input.current_position += 0x01;
         }
         else
         {
-            out[currentPos] = 0x02;
+            *output.get_current_data_position() = 0x02;
         }
-        currentPos += 0x01;
+        output.current_position += 0x01;
         // Flags bytes
         if (!(options & OO_REMOVE_REDUNDANT_FLAG))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x08);
-            bytesReaded += 0x08;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            input.current_position += 0x08;
         }
         else
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x04);
-            bytesReaded += 0x04;
-            out[currentPos + 4] = out[currentPos];
-            out[currentPos + 5] = out[currentPos + 1];
-            out[currentPos + 6] = out[currentPos + 2];
-            out[currentPos + 7] = out[currentPos + 3];
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
+            output.get_current_data_position()[4] = output.get_current_data_position()[0];
+            output.get_current_data_position()[5] = output.get_current_data_position()[1];
+            output.get_current_data_position()[6] = output.get_current_data_position()[2];
+            output.get_current_data_position()[7] = output.get_current_data_position()[3];
         }
-        currentPos += 0x08;
+        output.current_position += 0x08;
         // Data bytes
         if (type == ST_MODE2_1 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x800);
-            bytesReaded += 0x800;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x800);
+            input.current_position += 0x800;
         }
         else
         {
-            memset(out + currentPos, 0x00, 0x800);
+            std::memset(output.get_current_data_position(), 0x00, 0x800);
         }
-        currentPos += 0x800;
+        output.current_position += 0x800;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x04);
-            bytesReaded += 0x04;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
         }
         else
         {
-            put32lsb(out + currentPos, edc_compute(0, out + 0x10, 0x808));
+            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position() + 0x10, 0x808));
         }
-        currentPos += 0x04;
+        output.current_position += 0x04;
         // ECC bytes
         if (!(options & OO_REMOVE_ECC))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x114);
-            bytesReaded += 0x114;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x114);
+            input.current_position += 0x114;
         }
         else
         {
-            ecc_write_sector(zeroaddress, out + 0x10, out + currentPos);
+            ecc_write_sector(zeroaddress, (uint8_t *)output.get_start_data_position() + 0x10, (uint8_t *)output.get_current_data_position());
         }
-        currentPos += 0x114;
+        output.current_position += 0x114;
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2 XA 2
     status_code processor::regenerate_sector_mode_2_xa_2(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x01);
-            bytesReaded += 0x01;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            input.current_position += 0x01;
         }
         else
         {
-            out[currentPos] = 0x02;
+            *output.get_current_data_position() = 0x02;
         }
-        currentPos += 0x01;
+        output.current_position += 0x01;
         // Flags bytes
         if (!(options & OO_REMOVE_REDUNDANT_FLAG))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x08);
-            bytesReaded += 0x08;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            input.current_position += 0x08;
         }
         else
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x04);
-            bytesReaded += 0x04;
-            out[currentPos + 4] = out[currentPos];
-            out[currentPos + 5] = out[currentPos + 1];
-            out[currentPos + 6] = out[currentPos + 2];
-            out[currentPos + 7] = out[currentPos + 3];
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
+            output.get_current_data_position()[4] = output.get_current_data_position()[0];
+            output.get_current_data_position()[5] = output.get_current_data_position()[1];
+            output.get_current_data_position()[6] = output.get_current_data_position()[2];
+            output.get_current_data_position()[7] = output.get_current_data_position()[3];
         }
-        currentPos += 0x08;
+        output.current_position += 0x08;
         // Data bytes
         if (type == ST_MODE2_2 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x914);
-            bytesReaded += 0x914;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x914);
+            input.current_position += 0x914;
         }
         else
         {
-            memset(out + currentPos, 0x00, 0x914);
+            std::memset(output.get_current_data_position(), 0x00, 0x914);
         }
-        currentPos += 0x914;
+        output.current_position += 0x914;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC))
         {
-            memcpy(out + currentPos, sector + bytesReaded, 0x04);
-            bytesReaded += 0x04;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
         }
         else
         {
-            put32lsb(out + currentPos, edc_compute(0, out + 0x10, 0x91C));
+            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position() + 0x10, 0x91C));
         }
-        currentPos += 0x04;
+        output.current_position += 0x04;
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Data sector unknown mode
     status_code processor::regenerate_sector_mode_X(
-        uint8_t *out,
-        uint8_t *sector,
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t currentPos,
-        uint16_t &bytesReaded,
         optimizations options)
     {
         // Rest of bytes
-        memcpy(out + currentPos, sector + bytesReaded, 0x921);
-        currentPos += 0x921;
-        bytesReaded = 0x921;
+        std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x921);
+        output.current_position += 0x921;
+        input.current_position += 0x921;
+        output.update_start_position();
 
         return STATUS_OK;
     }
