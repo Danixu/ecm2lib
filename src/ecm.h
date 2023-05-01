@@ -191,9 +191,8 @@ namespace ecm
 
         uint32_t time_to_sector(std::vector<char> msf);
 
-        static status_code get_encoded_sector_size(
+        static size_t get_encoded_sector_size(
             sector_type type,
-            size_t &output_size,
             optimizations options);
 
     private:

@@ -44,9 +44,9 @@ namespace ecm
      * @brief Removes the non critical data from all the sectors in a Stream (ECM Encoding). It requires full sectors or will fail.
      *
      * @param out (uint8_t*) Output buffer where the data will be stored.
-     * @param outSize (uint64_t) Size of the output buffer. This variable will be updated with the space left in the buffer after the operation.
+     * @param outSize (size_t) Size of the output buffer. This variable will be updated with the space left in the buffer after the operation.
      * @param in (uint8_t*) Input buffer with the sectors to optimize.
-     * @param inSize (uint64_t) Size of the input buffer.
+     * @param inSize (size_t) Size of the input buffer.
      * @param startSectorNumber (uint32_t) Sector number of the first sector in the stream, required to regenerate an optimization.
      * @param options (optimizations) Optimizations to use on sectors optimizations
      * @param sectorsIndex
@@ -92,11 +92,10 @@ namespace ecm
         }
 
         /* Do a fast calculation to see if the stream fits the output buffer. Otherwise, return an error */
-        uint64_t outputCalculatedSize = 0;
-        uint64_t blockCalculatedSize = 0;
+        size_t outputCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
+            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], options);
             outputCalculatedSize += blockCalculatedSize;
         }
 
@@ -136,11 +135,10 @@ namespace ecm
         }
 
         /* Do a fast calculation to see if the input stream fits the required data size. Otherwise, return an error */
-        uint64_t inputCalculatedSize = 0;
-        uint64_t blockCalculatedSize = 0;
+        size_t inputCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], blockCalculatedSize, options);
+            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], options);
             inputCalculatedSize += blockCalculatedSize;
         }
 
@@ -1159,12 +1157,11 @@ namespace ecm
         return STATUS_OK;
     }
 
-    status_code processor::get_encoded_sector_size(
+    size_t processor::get_encoded_sector_size(
         sector_type type,
-        size_t &output_size,
         optimizations options)
     {
-        output_size = 0;
+        size_t output_size = 0;
         switch (type)
         {
         case ST_CDDA:
@@ -1338,7 +1335,7 @@ namespace ecm
             break;
         }
 
-        return STATUS_OK;
+        return output_size;
     }
 
     std::vector<char> inline processor::sector_to_time(
