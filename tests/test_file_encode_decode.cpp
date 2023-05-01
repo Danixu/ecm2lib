@@ -262,8 +262,7 @@ int main(int argc, char **argv)
         uint64_t toRead = 0;
         for (uint32_t j = 0; j < sectorsToRead; j++)
         {
-            uint64_t calculatedSectorSize = 0;
-            ecmEncoder.get_encoded_sector_size(index.buffer[i + j], calculatedSectorSize, optimizations);
+            uint64_t calculatedSectorSize = ecmEncoder.get_encoded_sector_size(index.buffer[i + j], optimizations);
             toRead += calculatedSectorSize;
         }
 

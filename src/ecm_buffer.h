@@ -1,3 +1,7 @@
+#include "ecm_enums.h"
+
+#ifndef __ECM_BUFFER_H__
+#define __ECM_BUFFER_H__
 namespace ecm
 {
     template <typename T>
@@ -142,5 +146,16 @@ namespace ecm
 
             return 0;
         }
+
+        char operator[](size_t item)
+        {
+            return get_current_data_position()[item];
+        }
+
+        char *operator+(size_t sum)
+        {
+            return (get_current_data_position() + sum);
+        }
     };
 }
+#endif
