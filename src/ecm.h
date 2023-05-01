@@ -200,6 +200,22 @@ namespace ecm
             current_position = start_position;
         }
 
+        status_code write(std::vector<T> data, size_t stop_after = 0)
+        {
+            if (stop_after == 0)
+            {
+                stop_after = data.size();
+            }
+
+            if ((current_position + stop_after) > buffer.size())
+            {
+                return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;
+            }
+
+            std::memcpy(get_current_data_position(), data.data(), stop_after);
+            return STATUS_OK;
+        }
+
         /**
          * @brief Get the items left in the buffer
          *
@@ -313,12 +329,9 @@ namespace ecm
             uint32_t sector_number,
             optimizations options);
 
-        void inline sector_to_time(
-            uint8_t *out,
-            uint32_t sector_number);
+        std::vector<char> inline sector_to_time(uint32_t sector_number);
 
-        uint32_t time_to_sector(
-            uint8_t *in);
+        uint32_t time_to_sector(std::vector<char> msf);
 
         static status_code get_encoded_sector_size(
             sector_type type,

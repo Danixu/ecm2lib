@@ -268,7 +268,8 @@ namespace ecm
             }
             else
             {
-                sector_to_time((uint8_t *)output.get_current_data_position(), sector_number);
+                std::vector<char> msf = sector_to_time(sector_number);
+                output.write(msf);
             }
             output.current_position += 0x03;
         }
@@ -469,8 +470,7 @@ namespace ecm
         {
             /* The sync part is always used to detect the sector, so always will be OK */
             /* We will chech the MSF part */
-            uint8_t generatedMSF[3] = {0};
-            sector_to_time(generatedMSF, sectorNumber);
+            std::vector<char> generatedMSF = sector_to_time(sectorNumber);
 
             if (sector[0x0C] != generatedMSF[0] ||
                 sector[0x0D] != generatedMSF[1] ||
@@ -1341,19 +1341,20 @@ namespace ecm
         return STATUS_OK;
     }
 
-    void inline processor::sector_to_time(
-        uint8_t *out,
+    std::vector<char> inline processor::sector_to_time(
         uint32_t sectorNumber)
     {
+        std::vector<char> timeData(3);
         uint8_t sectors = sectorNumber % 75;
         uint8_t seconds = (sectorNumber / 75) % 60;
         uint8_t minutes = (sectorNumber / 75) / 60;
 
         // Converting decimal to hex base 10
         // 15 -> 0x15 instead 0x0F
-        out[0] = (minutes / 10 * 16) + (minutes % 10);
-        out[1] = (seconds / 10 * 16) + (seconds % 10);
-        out[2] = (sectors / 10 * 16) + (sectors % 10);
+        timeData[0] = (minutes / 10 * 16) + (minutes % 10);
+        timeData[1] = (seconds / 10 * 16) + (seconds % 10);
+        timeData[2] = (sectors / 10 * 16) + (sectors % 10);
+        return timeData;
     }
 
     /**
@@ -1362,11 +1363,11 @@ namespace ecm
      * @param in The buffer with the three MSF bytes
      * @return uint32_t The value of the MSF in sector number
      */
-    uint32_t processor::time_to_sector(uint8_t *in)
+    uint32_t processor::time_to_sector(std::vector<char> msf)
     {
-        uint16_t minutes = (in[0] / 16 * 10) + (in[0] % 16);
-        uint16_t seconds = (in[1] / 16 * 10) + (in[1] % 16);
-        uint16_t sectors = (in[2] / 16 * 10) + (in[2] % 16);
+        uint16_t minutes = (msf[0] / 16 * 10) + (msf[0] % 16);
+        uint16_t seconds = (msf[1] / 16 * 10) + (msf[1] % 16);
+        uint16_t sectors = (msf[2] / 16 * 10) + (msf[2] % 16);
 
         uint32_t time = (minutes * 60 * 75) + (seconds * 75) + sectors;
         return time;
