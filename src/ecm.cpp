@@ -47,14 +47,14 @@ namespace ecm
      * @param outSize (size_t) Size of the output buffer. This variable will be updated with the space left in the buffer after the operation.
      * @param in (uint8_t*) Input buffer with the sectors to optimize.
      * @param inSize (size_t) Size of the input buffer.
-     * @param startSectorNumber (uint32_t) Sector number of the first sector in the stream, required to regenerate an optimization.
+     * @param startSectorNumber (uint32_t) Sector number of the first sector in the stream, required to decode the MSF optimization.
      * @param options (optimizations) Optimizations to use on sectors optimizations
      * @param sectorsIndex
      * @param sectorsIndexSize
      * @param useTheBestOptimizations (bool) Check if the data integrity of the sectors can be maintained with the desired optimizations. If not, the "options" argument will be updated with the best optimizations for the stream.
      * @return int8_t int8_t Returns 0 if everything was OK. Otherwise a negative number will be returned.
      */
-    status_code processor::clean_stream(
+    status_code processor::encode_stream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -107,14 +107,14 @@ namespace ecm
         /* Optimize the stream into the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            clean_sector(input, output, *sectorsIndex.get_current_data_position(), options);
+            encode_sector(input, output, *sectorsIndex.get_current_data_position(), options);
             sectorsIndex.current_position++;
         }
 
         return STATUS_OK;
     }
 
-    status_code processor::regenerate_stream(
+    status_code processor::decode_stream(
         data_buffer<char> &input,
         data_buffer<char> &output,
         data_buffer<sector_type> &sectorsIndex,
@@ -150,7 +150,7 @@ namespace ecm
         /* Start to decode every sector and place it in the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            regenerate_sector(input, output, sectorsIndex.get_current_data_position()[i], startSectorNumber + i, options);
+            decode_sector(input, output, sectorsIndex.get_current_data_position()[i], startSectorNumber + i, options);
         }
 
         sectorsIndex.current_position += inputSectorsNumber;
@@ -168,66 +168,50 @@ namespace ecm
      * @param options (optimizations) Optimizations that will be used in this sector
      * @return int8_t Returns 0 if everything was Ok, otherwise will return a negative number.
      */
-    status_code processor::clean_sector(
+    status_code processor::encode_sector(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
         optimizations options)
     {
-        uint16_t outputSize = 0;
-        status_code return_code = STATUS_OK;
         switch (type)
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return_code = clean_sector_cdda((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_cdda(input, output, type, options);
             break;
 
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return_code = clean_sector_mode_1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_1(input, output, type, options);
             break;
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return_code = clean_sector_mode_2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_2(input, output, type, options);
             break;
 
         case ST_MODE2_XA_GAP:
-            return_code = clean_sector_mode_2_xa_gap((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_2_xa_gap(input, output, type, options);
             break;
 
         case ST_MODE2_XA1:
         case ST_MODE2_XA1_GAP:
-            return_code = clean_sector_mode_2_xa_1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_2_xa_1(input, output, type, options);
             break;
 
         case ST_MODE2_XA2:
         case ST_MODE2_XA2_GAP:
-            return_code = clean_sector_mode_2_xa_2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_2_xa_2(input, output, type, options);
             break;
 
         case ST_MODEX:
-            return_code = clean_sector_mode_X((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
-            input.current_position += 2352;
-            output.current_position += outputSize;
+            return encode_sector_mode_X(input, output, type, options);
             break;
         }
 
-        return return_code;
+        return STATUS_UNKNOWN_ERROR;
     }
 
     /**
@@ -241,7 +225,7 @@ namespace ecm
      * @param options
      * @return int8_t
      */
-    status_code processor::regenerate_sector(
+    status_code processor::decode_sector(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -283,30 +267,30 @@ namespace ecm
         {
         case ST_CDDA:
         case ST_CDDA_GAP:
-            return regenerate_sector_cdda(input, output, type, options);
+            return decode_sector_cdda(input, output, type, options);
 
         case ST_MODE1:
         case ST_MODE1_GAP:
         case ST_MODE1_RAW:
-            return regenerate_sector_mode_1(input, output, type, options);
+            return decode_sector_mode_1(input, output, type, options);
 
         case ST_MODE2:
         case ST_MODE2_GAP:
-            return regenerate_sector_mode_2(input, output, type, options);
+            return decode_sector_mode_2(input, output, type, options);
 
         case ST_MODE2_XA_GAP:
-            return regenerate_sector_mode_2_xa_gap(input, output, type, options);
+            return decode_sector_mode_2_xa_gap(input, output, type, options);
 
         case ST_MODE2_XA1:
         case ST_MODE2_XA1_GAP:
-            return regenerate_sector_mode_2_xa_1(input, output, type, options);
+            return decode_sector_mode_2_xa_1(input, output, type, options);
 
         case ST_MODE2_XA2:
         case ST_MODE2_XA2_GAP:
-            return regenerate_sector_mode_2_xa_2(input, output, type, options);
+            return decode_sector_mode_2_xa_2(input, output, type, options);
 
         case ST_MODEX:
-            return regenerate_sector_mode_X(input, output, type, options);
+            return decode_sector_mode_X(input, output, type, options);
         }
 
         return STATUS_OK;
@@ -673,300 +657,340 @@ namespace ecm
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    status_code processor::clean_sector_cdda(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_cdda(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         /* CDDA are raw, so no optimizations can be applied */
         if (type == ST_CDDA || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out, sector, 2352);
-            outputSize = 2352;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 2352);
+            output.current_position += 2352;
         }
+        input.current_position += 2352;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 1
-    status_code processor::clean_sector_mode_1(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_1(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + outputSize, sector + 0x0F, 0x01);
-            outputSize += 0x01;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            output.current_position += 0x01;
         }
+        input.current_position++;
         // Data bytes
         if (type == ST_MODE1 || type == ST_MODE1_RAW || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + outputSize, sector + 0x10, 0x800);
-            outputSize += 0x800;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x800);
+            output.current_position += 0x800;
         }
+        input.current_position += 0x800;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC) || type == ST_MODE1_RAW)
         {
-            memcpy(out + outputSize, sector + 0x810, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x04;
         // Zeroed bytes
         if (!(options & OO_REMOVE_BLANKS))
         {
-            memcpy(out + outputSize, sector + 0x814, 0x08);
-            outputSize += 0x08;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            output.current_position += 0x08;
         }
+        input.current_position += 0x08;
         // ECC bytes
         if (!(options & OO_REMOVE_ECC) || type == ST_MODE1_RAW)
         {
-            memcpy(out + outputSize, sector + 0x81C, 0x114);
-            outputSize += 0x114;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x114);
+            output.current_position += 0x114;
         }
+        input.current_position += 0x114;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2
-    status_code processor::clean_sector_mode_2(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_2(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + outputSize, sector + 0x0F, 0x01);
-            outputSize += 0x01;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            output.current_position++;
         }
+        input.current_position++;
         // Data bytes
         if (type == ST_MODE2 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + outputSize, sector + 0x10, 0x920);
-            outputSize += 0x920;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x920);
+            output.current_position += 0x920;
         }
+        input.current_position += 0x920;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2 XA GAP
-    status_code processor::clean_sector_mode_2_xa_gap(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_2_xa_gap(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + outputSize, sector + 0x0F, 0x01);
-            outputSize += 0x01;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            output.current_position++;
         }
+        input.current_position++;
         // Flags bytes
         if (!(options & OO_REMOVE_REDUNDANT_FLAG))
         {
-            memcpy(out + outputSize, sector + 0x10, 0x08);
-            outputSize += 0x08;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            output.current_position += 0x08;
         }
         else
         {
-            memcpy(out + outputSize, sector + 0x10, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x08;
         // GAP bytes
         if (!(options & OO_REMOVE_GAP))
         {
-            memcpy(out + outputSize, sector + 0x18, 0x918);
-            outputSize += 0x918;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x918);
+            output.current_position += 0x918;
         }
+        input.current_position += 0x918;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2 XA 1
-    status_code processor::clean_sector_mode_2_xa_1(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_2_xa_1(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + outputSize, sector + 0x0F, 0x01);
-            outputSize += 0x01;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            output.current_position++;
         }
+        input.current_position++;
         // Flags bytes
         if (!(options & OO_REMOVE_REDUNDANT_FLAG))
         {
-            memcpy(out + outputSize, sector + 0x10, 0x08);
-            outputSize += 0x08;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            output.current_position += 0x08;
         }
         else
         {
-            memcpy(out + outputSize, sector + 0x10, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x08;
         // Data bytes
         if (type == ST_MODE2_XA1 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + outputSize, sector + 0x18, 0x800);
-            outputSize += 0x800;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x800);
+            output.current_position += 0x800;
         }
+        input.current_position += 0x800;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC))
         {
-            memcpy(out + outputSize, sector + 0x818, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x04;
         // ECC bytes
         if (!(options & OO_REMOVE_ECC))
         {
-            memcpy(out + outputSize, sector + 0x81C, 0x114);
-            outputSize += 0x114;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x114);
+            output.current_position += 0x114;
         }
+        input.current_position += 0x114;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Mode 2 XA 1
-    status_code processor::clean_sector_mode_2_xa_2(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_2_xa_2(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Mode bytes
         if (!(options & OO_REMOVE_MODE))
         {
-            memcpy(out + outputSize, sector + 0x0F, 0x01);
-            outputSize += 0x01;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            output.current_position++;
         }
+        input.current_position++;
         // Flags bytes
         if (!(options & OO_REMOVE_REDUNDANT_FLAG))
         {
-            memcpy(out + outputSize, sector + 0x10, 0x08);
-            outputSize += 0x08;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            output.current_position += 0x08;
         }
         else
         {
-            memcpy(out + outputSize, sector + 0x10, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x08;
         // Data bytes
         if (type == ST_MODE2_XA2 || !(options & OO_REMOVE_GAP))
         {
-            memcpy(out + outputSize, sector + 0x18, 0x914);
-            outputSize += 0x914;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x914);
+            output.current_position += 0x914;
         }
+        input.current_position += 0x914;
         // EDC bytes
         if (!(options & OO_REMOVE_EDC))
         {
-            memcpy(out + outputSize, sector + 0x92C, 0x04);
-            outputSize += 0x04;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            output.current_position += 0x04;
         }
+        input.current_position += 0x04;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
     // Unknown data mode
-    status_code processor::clean_sector_mode_X(
-        uint8_t *out,
-        uint8_t *sector,
+    status_code processor::encode_sector_mode_X(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
         sector_type type,
-        uint16_t &outputSize,
         optimizations options)
     {
         // SYNC bytes
         if (!(options & OO_REMOVE_SYNC))
         {
-            memcpy(out, sector, 0x0C);
-            outputSize += 0x0C;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x0C);
+            output.current_position += 0x0C;
         }
+        input.current_position += 0x0C;
         // Address bytes
         if (!(options & OO_REMOVE_MSF))
         {
-            memcpy(out + outputSize, sector + 0x0C, 0x03);
-            outputSize += 0x03;
+            memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x03);
+            output.current_position += 0x03;
         }
+        input.current_position += 0x03;
         // Rest of bytes
-        memcpy(out + outputSize, sector + 0x0F, 0x921);
-        outputSize += 0x921;
+        memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x921);
+        output.current_position += 0x921;
+        input.current_position += 0x921;
+        input.update_start_position();
+        output.update_start_position();
 
         return STATUS_OK;
     }
 
-    status_code processor::regenerate_sector_cdda(
+    status_code processor::decode_sector_cdda(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -989,7 +1013,7 @@ namespace ecm
     }
 
     // Mode 1
-    status_code processor::regenerate_sector_mode_1(
+    status_code processor::decode_sector_mode_1(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -1056,7 +1080,7 @@ namespace ecm
     }
 
     // Mode 2
-    status_code processor::regenerate_sector_mode_2(
+    status_code processor::decode_sector_mode_2(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -1090,7 +1114,7 @@ namespace ecm
     }
 
     // Mode 2 XA GAP
-    status_code processor::regenerate_sector_mode_2_xa_gap(
+    status_code processor::decode_sector_mode_2_xa_gap(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -1140,7 +1164,7 @@ namespace ecm
     }
 
     // Mode 2 XA 1
-    status_code processor::regenerate_sector_mode_2_xa_1(
+    status_code processor::decode_sector_mode_2_xa_1(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -1212,7 +1236,7 @@ namespace ecm
     }
 
     // Mode 2 XA 2
-    status_code processor::regenerate_sector_mode_2_xa_2(
+    status_code processor::decode_sector_mode_2_xa_2(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,
@@ -1273,7 +1297,7 @@ namespace ecm
     }
 
     // Data sector unknown mode
-    status_code processor::regenerate_sector_mode_X(
+    status_code processor::decode_sector_mode_X(
         data_buffer<char> &input,
         data_buffer<char> &output,
         sector_type type,

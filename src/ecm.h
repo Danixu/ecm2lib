@@ -107,7 +107,7 @@ namespace ecm
 
         sector_type detect(uint8_t *sector);
 
-        status_code clean_stream(
+        status_code encode_stream(
             data_buffer<char> &input,
             data_buffer<char> &output,
             data_buffer<sector_type> &sectors_index,
@@ -116,7 +116,7 @@ namespace ecm
             optimizations &options,
             bool use_the_best_optimizations = true);
 
-        status_code regenerate_stream(
+        status_code decode_stream(
             data_buffer<char> &input,
             data_buffer<char> &output,
             data_buffer<sector_type> &sectors_index,
@@ -124,13 +124,13 @@ namespace ecm
             uint32_t start_sector_number,
             optimizations options);
 
-        status_code clean_sector(
+        status_code encode_sector(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
 
-        status_code regenerate_sector(
+        status_code decode_sector(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
@@ -192,92 +192,85 @@ namespace ecm
             uint8_t *ecc);
 
         // sector cleaner CDDA
-        status_code clean_sector_cdda(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_cdda(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 1
-        status_code clean_sector_mode_1(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_1(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2
-        status_code clean_sector_mode_2(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_2(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2 XA GAP
-        status_code clean_sector_mode_2_xa_gap(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_2_xa_gap(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2 XA 1
-        status_code clean_sector_mode_2_xa_1(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_2_xa_1(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Mode 2 XA 1
-        status_code clean_sector_mode_2_xa_2(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_2_xa_2(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector cleaner Unknown Mode
-        status_code clean_sector_mode_X(
-            uint8_t *out,
-            uint8_t *sector,
+        status_code encode_sector_mode_X(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
             sector_type type,
-            uint16_t &output_size,
             optimizations options);
         // sector regenerator CDDA
-        status_code regenerate_sector_cdda(
+        status_code decode_sector_cdda(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Mode 1
-        status_code regenerate_sector_mode_1(
+        status_code decode_sector_mode_1(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Mode 2
-        status_code regenerate_sector_mode_2(
+        status_code decode_sector_mode_2(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Mode 2 XA GAP
-        status_code regenerate_sector_mode_2_xa_gap(
+        status_code decode_sector_mode_2_xa_gap(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Mode 2 XA 1
-        status_code regenerate_sector_mode_2_xa_1(
+        status_code decode_sector_mode_2_xa_1(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Mode 2 XA 2
-        status_code regenerate_sector_mode_2_xa_2(
+        status_code decode_sector_mode_2_xa_2(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,
             optimizations options);
         //  sector regenerator Unknown mode
-        status_code regenerate_sector_mode_X(
+        status_code decode_sector_mode_X(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,

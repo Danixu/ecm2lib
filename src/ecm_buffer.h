@@ -64,6 +64,11 @@ namespace ecm
                 stop_after = data.size();
             }
 
+            if (data.size() > stop_after)
+            {
+                return STATUS_ERROR_NO_ENOUGH_INPUT_DATA;
+            }
+
             if ((current_position + stop_after) > buffer.size())
             {
                 return STATUS_ERROR_NO_ENOUGH_OUTPUT_BUFFER_SPACE;

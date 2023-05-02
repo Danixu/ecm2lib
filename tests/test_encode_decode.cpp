@@ -124,7 +124,7 @@ int main()
 
             /* Encode the sector in the output buffer */
             uint16_t outputProcessedSize = 0;
-            sectorsProcessor.clean_sector(processBuffer, testFiles[i].sector, testFiles[i].sectorType, outputProcessedSize, OPTIMIZATIONS);
+            sectorsProcessor.encode_sector(processBuffer, testFiles[i].sector, testFiles[i].sectorType, outputProcessedSize, OPTIMIZATIONS);
             printf("The encoded size is %d.\n", outputProcessedSize);
 
             /* Get the original sector number */
@@ -132,7 +132,7 @@ int main()
 
             /* Try to regenerate the sector again */
             uint16_t outputReadedSize = 0;
-            sectorsProcessor.regenerate_sector(outputBuffer, processBuffer, testFiles[i].sectorType, sectorNumber, outputReadedSize, OPTIMIZATIONS);
+            sectorsProcessor.decode_sector(outputBuffer, processBuffer, testFiles[i].sectorType, sectorNumber, outputReadedSize, OPTIMIZATIONS);
             printf("Readed bytes from encoded stream (must match the encoded size): %d.\n", outputReadedSize);
 
             /* Verify if the sector matches (it is perfectly encoded) */
@@ -181,7 +181,7 @@ int main()
     ecm::optimizations resultedOptimizations = usedOptimizations;
 
     /* Encode the data using the stream encoder */
-    sectorsProcessor.clean_stream(
+    sectorsProcessor.encode_stream(
         encodedBuffer,
         encodedSize,
         inputBuffer,
@@ -198,7 +198,7 @@ int main()
 
     /* The sectors were optimized correctly, so now it's time to decode and test */
     uint64_t inputSize = encodedSize;
-    sectorsProcessor.regenerate_stream(
+    sectorsProcessor.decode_stream(
         outputBuffer,
         2352 * testFiles.size(),
         encodedBuffer,
