@@ -306,23 +306,11 @@ namespace ecm
      * @return true The sectors are a gap
      * @return false Any or all sectors are not zeroed, so is not a gap.
      */
-    bool inline processor::is_gap(uint8_t *sector, uint16_t length)
-    {
-        for (uint16_t i = 0; i < length; i++)
-        {
-            if ((sector[i]) != 0x00)
-            {
-                return false; // Sector contains data, so is not a GAP
-            }
-        }
-
-        return true;
-    }
-    bool inline processor::is_gap(data_buffer<char> &input, size_t length)
+    bool inline processor::is_gap(char *sector, size_t length)
     {
         for (size_t i = 0; i < length; i++)
         {
-            if ((input[i]) != 0x00)
+            if ((sector[i]) != 0x00)
             {
                 return false; // Sector contains data, so is not a GAP
             }
@@ -365,9 +353,9 @@ namespace ecm
                         (uint8_t *)(input + 0xC),
                         (uint8_t *)(input + 0x10),
                         (uint8_t *)(input + 0x81C)) &&
-                    edc_compute(0, (uint8_t *)input.get_current_data_position(), 0x810) == get32lsb((uint8_t *)(input + 0x810)))
+                    edc_compute(input.get_current_data_position(), 0x810) == get32lsb((input + 0x810)))
                 {
-                    if (is_gap((uint8_t *)(input + 0x10), 0x800))
+                    if (is_gap((input + 0x10), 0x800))
                     {
                         return ST_MODE1_GAP;
                     }
@@ -387,7 +375,7 @@ namespace ecm
                 //  The sector is MODE2, and now we will detect what kind
                 //
                 /* First we will check if the sector is a gap, because can be confused with a ST_MODE2_1_GAP */
-                if (is_gap((uint8_t *)(input + 0x10), 0x920))
+                if (is_gap((input + 0x10), 0x920))
                 {
                     return ST_MODE2_GAP;
                 }
@@ -396,9 +384,9 @@ namespace ecm
                 //
                 if (
                     ecc_check_sector(zeroaddress, (uint8_t *)(input + 0x10), (uint8_t *)(input + 0x81C)) &&
-                    edc_compute(0, (uint8_t *)(input + 0x10), 0x808) == get32lsb((uint8_t *)(input + 0x818)))
+                    edc_compute((input + 0x10), 0x808) == get32lsb((input + 0x818)))
                 {
-                    if (is_gap((uint8_t *)(input + 0x18), 0x800))
+                    if (is_gap((input + 0x18), 0x800))
                     {
                         return ST_MODE2_XA1_GAP;
                     }
@@ -411,9 +399,9 @@ namespace ecm
                 // Might be Mode 2, Form 2
                 //
                 if (
-                    edc_compute(0, (uint8_t *)(input + 0x10), 0x91C) == get32lsb((uint8_t *)(input + 0x92C)))
+                    edc_compute((input + 0x10), 0x91C) == get32lsb((input + 0x92C)))
                 {
-                    if (is_gap((uint8_t *)(input + 0x18), 0x914))
+                    if (is_gap((input + 0x18), 0x914))
                     {
                         return ST_MODE2_XA2_GAP;
                     }
@@ -429,7 +417,7 @@ namespace ecm
                     input[0x11] == input[0x15] &&
                     input[0x12] == input[0x16] &&
                     input[0x13] == input[0x17] &&
-                    is_gap((uint8_t *)(input + 0x18), 0x918))
+                    is_gap((input + 0x18), 0x918))
                 {
                     // Sector is an XA sector, but doesn't match the standard of EDC/ECC and is fully zeroed
                     return ST_MODE2_XA_GAP;
@@ -445,7 +433,7 @@ namespace ecm
         else
         {
             // Sector is not recognized, so might be a CDDA sector
-            if (is_gap((uint8_t *)input.get_current_data_position(), 0x930))
+            if (is_gap(input.get_current_data_position(), 0x930))
             {
                 return ST_CDDA_GAP;
             }
@@ -524,27 +512,27 @@ namespace ecm
         return newOptions;
     }
 
-    inline uint32_t processor::get32lsb(const uint8_t *src)
+    inline uint32_t processor::get32lsb(const char *src)
     {
-        return (((uint32_t)(src[0])) << 0) |
-               (((uint32_t)(src[1])) << 8) |
-               (((uint32_t)(src[2])) << 16) |
-               (((uint32_t)(src[3])) << 24);
+        return (uint32_t)(static_cast<uint8_t>(src[0]) << 0 |
+                          static_cast<uint8_t>(src[1]) << 8 |
+                          static_cast<uint8_t>(src[2]) << 16 |
+                          static_cast<uint8_t>(src[3]) << 24);
     }
 
-    inline void processor::put32lsb(uint8_t *dest, uint32_t value)
+    inline void processor::put32lsb(data_buffer<char> &output, uint32_t value)
     {
-        dest[0] = (uint8_t)(value);
-        dest[1] = (uint8_t)(value >> 8);
-        dest[2] = (uint8_t)(value >> 16);
-        dest[3] = (uint8_t)(value >> 24);
+        output[0] = (char)(value);
+        output[1] = (char)(value >> 8);
+        output[2] = (char)(value >> 16);
+        output[3] = (char)(value >> 24);
     }
 
     inline uint32_t processor::edc_compute(
-        uint32_t edc,
-        const uint8_t *src,
+        const char *src,
         size_t size)
     {
+        uint32_t edc = 0;
         for (; size; size--)
         {
             edc = (edc >> 8) ^ edc_lut[(edc ^ (*src++)) & 0xFF];
@@ -1056,7 +1044,7 @@ namespace ecm
         }
         else
         {
-            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position(), 0x810));
+            put32lsb(output, edc_compute(output.get_start_data_position(), 0x810));
         }
         output.current_position += 0x04;
         // Zeroed bytes
@@ -1223,7 +1211,7 @@ namespace ecm
         }
         else
         {
-            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position() + 0x10, 0x808));
+            put32lsb(output, edc_compute(output.get_start_data_position() + 0x10, 0x808));
         }
         output.current_position += 0x04;
         // ECC bytes
@@ -1295,7 +1283,7 @@ namespace ecm
         }
         else
         {
-            put32lsb((uint8_t *)output.get_current_data_position(), edc_compute(0, (uint8_t *)output.get_start_data_position() + 0x10, 0x91C));
+            put32lsb(output, edc_compute(output.get_start_data_position() + 0x10, 0x91C));
         }
         output.current_position += 0x04;
         output.update_start_position();
@@ -1553,11 +1541,11 @@ namespace ecm
      * @param in The buffer with the three MSF bytes
      * @return uint32_t The value of the MSF in sector number
      */
-    uint32_t processor::time_to_sector(std::vector<char> msf)
+    uint32_t processor::time_to_sector(data_buffer<char> &input)
     {
-        uint16_t minutes = (msf[0] / 16 * 10) + (msf[0] % 16);
-        uint16_t seconds = (msf[1] / 16 * 10) + (msf[1] % 16);
-        uint16_t sectors = (msf[2] / 16 * 10) + (msf[2] % 16);
+        uint16_t minutes = (input[0] / 16 * 10) + (input[0] % 16);
+        uint16_t seconds = (input[1] / 16 * 10) + (input[1] % 16);
+        uint16_t sectors = (input[2] / 16 * 10) + (input[2] % 16);
 
         uint32_t time = (minutes * 60 * 75) + (seconds * 75) + sectors;
         return time;

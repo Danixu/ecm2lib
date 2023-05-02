@@ -139,7 +139,7 @@ namespace ecm
 
         std::vector<char> inline sector_to_time(uint32_t sector_number);
 
-        uint32_t time_to_sector(std::vector<char> msf);
+        uint32_t time_to_sector(data_buffer<char> &input);
 
         static size_t get_encoded_sector_size(
             sector_type type,
@@ -147,24 +147,19 @@ namespace ecm
 
     private:
         bool inline is_gap(
-            data_buffer<char> &input,
+            char *sector,
             size_t length);
-        bool inline is_gap(
-            uint8_t *sector,
-            uint16_t length);
         optimizations check_optimizations(
             data_buffer<char> &input,
             uint32_t sector_number,
             optimizations options,
             sector_type type);
-        static inline uint32_t get32lsb(
-            const uint8_t *src);
+        static inline uint32_t get32lsb(const char *src);
         static inline void put32lsb(
-            uint8_t *dest,
+            data_buffer<char> &output,
             uint32_t value);
         inline uint32_t edc_compute(
-            uint32_t edc,
-            const uint8_t *src,
+            const char *src,
             size_t size);
         int8_t ecc_checkpq(
             const uint8_t *address,
