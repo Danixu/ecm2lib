@@ -350,9 +350,9 @@ namespace ecm
                 //  The sector is surelly MODE1 but we will check the EDC
                 if (
                     ecc_check_sector(
-                        (uint8_t *)(input + 0xC),
-                        (uint8_t *)(input + 0x10),
-                        (uint8_t *)(input + 0x81C)) &&
+                        reinterpret_cast<uint8_t *>(input + 0xC),
+                        reinterpret_cast<uint8_t *>(input + 0x10),
+                        reinterpret_cast<uint8_t *>(input + 0x81C)) &&
                     edc_compute(input.get_current_data_position(), 0x810) == get32lsb((input + 0x810)))
                 {
                     if (is_gap((input + 0x10), 0x800))
@@ -383,7 +383,7 @@ namespace ecm
                 // Might be Mode 2, Form 1
                 //
                 if (
-                    ecc_check_sector(zeroaddress, (uint8_t *)(input + 0x10), (uint8_t *)(input + 0x81C)) &&
+                    ecc_check_sector(zeroaddress, reinterpret_cast<uint8_t *>(input + 0x10), reinterpret_cast<uint8_t *>(input + 0x81C)) &&
                     edc_compute((input + 0x10), 0x808) == get32lsb((input + 0x818)))
                 {
                     if (is_gap((input + 0x18), 0x800))
@@ -1066,7 +1066,7 @@ namespace ecm
         }
         else
         {
-            ecc_write_sector((uint8_t *)output.get_start_data_position() + 0xC, (uint8_t *)output.get_start_data_position() + 0x10, (uint8_t *)output.get_current_data_position());
+            ecc_write_sector(reinterpret_cast<uint8_t *>(output.get_start_data_position() + 0xC), reinterpret_cast<uint8_t *>(output.get_start_data_position() + 0x10), reinterpret_cast<uint8_t *>(output.get_current_data_position()));
         }
         output.current_position += 0x114;
         output.update_start_position();
@@ -1222,7 +1222,7 @@ namespace ecm
         }
         else
         {
-            ecc_write_sector(zeroaddress, (uint8_t *)output.get_start_data_position() + 0x10, (uint8_t *)output.get_current_data_position());
+            ecc_write_sector(zeroaddress, reinterpret_cast<uint8_t *>(output.get_start_data_position() + 0x10), reinterpret_cast<uint8_t *>(output.get_current_data_position()));
         }
         output.current_position += 0x114;
         output.update_start_position();
