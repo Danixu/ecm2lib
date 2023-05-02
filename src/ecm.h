@@ -99,6 +99,13 @@
 #define __ECM_H__
 namespace ecm
 {
+#pragma pack(push, 1)
+    struct compacted_header
+    {
+        sector_type type = ST_UNKNOWN;
+        uint32_t count = 0;
+    };
+#pragma pack(pop)
 
     class processor
     {
@@ -136,6 +143,12 @@ namespace ecm
             sector_type type,
             uint32_t sector_number,
             optimizations options);
+
+        std::vector<compacted_header> pack_header(data_buffer<sector_type> &sectors);
+        ecm::data_buffer<sector_type> unpack_header(std::vector<compacted_header> &sectors);
+
+        std::vector<char> ultrapack_header(data_buffer<sector_type> &sectors);
+        ecm::data_buffer<sector_type> ultraunpack_header(std::vector<char> &sectors);
 
         std::vector<char> inline sector_to_time(uint32_t sector_number);
 

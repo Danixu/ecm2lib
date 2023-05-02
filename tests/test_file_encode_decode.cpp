@@ -170,8 +170,34 @@ int main(int argc, char **argv)
         printf("The 'Remove gap' optimization is disabled.\n");
     }
 
+    index.reset_positions();
+
     std::ofstream _oif("test_encode.idx", std::ios::trunc | std::ios::binary);
     _oif.write((char *)index.buffer.data(), sizeof(ecm::sector_type) * sectors);
+    _oif.close();
+
+    /* Pack the header data and write it again */
+    std::vector<ecm::compacted_header> packed_header = ecmEncoder.pack_header(index);
+    _oif.open("test_encode_packed.idx", std::ios::trunc | std::ios::binary);
+    _oif.write((char *)packed_header.data(), sizeof(ecm::compacted_header) * packed_header.size());
+    _oif.close();
+
+    /* Unpack the header data again for testing their result */
+    ecm::data_buffer<ecm::sector_type> unpacked_header = ecmEncoder.unpack_header(packed_header);
+    _oif.open("test_encode_unpacked.idx", std::ios::trunc | std::ios::binary);
+    _oif.write((char *)unpacked_header.buffer.data(), sizeof(ecm::sector_type) * unpacked_header.buffer.size());
+    _oif.close();
+
+    /* Ultrapack the header data and write it again */
+    std::vector<char> ultrapacked_header = ecmEncoder.ultrapack_header(index);
+    _oif.open("test_encode_ultrapacked.idx", std::ios::trunc | std::ios::binary);
+    _oif.write(ultrapacked_header.data(), ultrapacked_header.size());
+    _oif.close();
+
+    /* Ultraunpack the header data again for testing their result */
+    ecm::data_buffer<ecm::sector_type> ultraunpacked_header = ecmEncoder.ultraunpack_header(ultrapacked_header);
+    _oif.open("test_encode_ultraunpacked.idx", std::ios::trunc | std::ios::binary);
+    _oif.write((char *)ultraunpacked_header.buffer.data(), sizeof(ecm::sector_type) * unpacked_header.buffer.size());
     _oif.close();
 
     printf("Writting the header and index data.\n");
@@ -182,7 +208,6 @@ int main(int argc, char **argv)
 
     /* Reset the positions */
     inputFile.seekg(0, std::ios::beg);
-    index.current_position = 0;
 
     printf("Processing the input file and storing the data in the output file.\n");
     /* Well, the header was written and now is time to write the optimized sectors */

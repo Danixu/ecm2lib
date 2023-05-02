@@ -298,6 +298,122 @@ namespace ecm
         return STATUS_OK;
     }
 
+    std::vector<compacted_header> processor::pack_header(data_buffer<sector_type> &sectors)
+    {
+        std::vector<compacted_header> packed_header;
+
+        sector_type current = ST_UNKNOWN;
+        uint32_t count = 0;
+
+        for (size_t i = 0; i < sectors.buffer.size(); i++)
+        {
+            /* If not sector was set (first iteration), update it */
+            if (current == ST_UNKNOWN)
+            {
+                current = sectors[i];
+            }
+
+            if (current != sectors[i])
+            {
+                packed_header.push_back({current, count});
+                current = sectors[i];
+                count = 0;
+            }
+            count++;
+
+            /* Last iteration so must be pushed to the vector */
+            if ((i + 1) == sectors.buffer.size())
+            {
+                packed_header.push_back({current, count});
+            }
+        }
+
+        return packed_header;
+    }
+
+    data_buffer<sector_type> processor::unpack_header(std::vector<compacted_header> &sectors)
+    {
+        data_buffer<sector_type> unpacked_header;
+
+        /* Go to the compacted header one by one */
+        for (size_t i = 0; i < sectors.size(); i++)
+        {
+            /* Append one entry by sector */
+            for (uint32_t j = 0; j < sectors[i].count; j++)
+            {
+                unpacked_header.buffer.push_back(sectors[i].type);
+            }
+        }
+
+        return unpacked_header;
+    }
+
+    std::vector<char> processor::ultrapack_header(data_buffer<sector_type> &sectors)
+    {
+        std::vector<char> packed_header;
+
+        sector_type current = ST_UNKNOWN;
+        uint32_t count = 0;
+
+        for (size_t i = 0; i < sectors.buffer.size(); i++)
+        {
+            /* If not sector was set (first iteration), update it */
+            if (current == ST_UNKNOWN)
+            {
+                current = sectors[i];
+            }
+
+            if (current != sectors[i])
+            {
+                /* Get current size and position, and increase the size by 4 chars (bytes) */
+                size_t current_header_size = packed_header.size();
+                packed_header.resize(current_header_size + 4);
+                /* Store the current type and 3 bytes of the uint32_t variable */
+                packed_header.data()[current_header_size] = current;
+                memcpy(packed_header.data() + current_header_size + 1, &count, 3);
+
+                current = sectors[i];
+                count = 0;
+            }
+            count++;
+
+            /* Last iteration so must be pushed to the vector */
+            if ((i + 1) == sectors.buffer.size())
+            {
+                /* Get current size and position, and increase the size by 4 chars (bytes) */
+                size_t current_header_size = packed_header.size();
+                packed_header.resize(current_header_size + 4);
+                /* Store the current type and 3 bytes of the uint32_t variable */
+                packed_header.data()[current_header_size] = current;
+                memcpy(packed_header.data() + current_header_size + 1, &count, 3);
+            }
+        }
+
+        return packed_header;
+    }
+
+    data_buffer<sector_type> processor::ultraunpack_header(std::vector<char> &sectors)
+    {
+        data_buffer<sector_type> unpacked_header;
+
+        /* Go to the compacted header one by one */
+        for (size_t i = 0; i < sectors.size(); i += 4)
+        {
+            sector_type type = (sector_type)sectors.data()[i];
+            uint32_t count = 0;
+
+            memcpy(&count, sectors.data() + (i + 1), 3);
+
+            /* Append one entry by sector */
+            for (uint32_t j = 0; j < count; j++)
+            {
+                unpacked_header.buffer.push_back(type);
+            }
+        }
+
+        return unpacked_header;
+    }
+
     /**
      * @brief Detects if the sector is a gap or contains data
      *
