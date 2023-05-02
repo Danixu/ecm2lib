@@ -152,12 +152,17 @@ namespace ecm
             return 0;
         }
 
-        char operator[](size_t item)
+        const T &operator[](size_t item) const
         {
             return get_current_data_position()[item];
         }
 
-        char *operator+(size_t sum)
+        T &operator[](size_t item)
+        {
+            return get_current_data_position()[item];
+        }
+
+        T *operator+(size_t sum)
         {
             return (get_current_data_position() + sum);
         }

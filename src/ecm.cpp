@@ -75,27 +75,29 @@ namespace ecm
             return STATUS_ERROR_NO_ENOUGH_OUTPUT_INDEX_SPACE;
         }
 
-        /* Create a buffer and try to encode the sectors one by one. If any of them cannot be recovered in a lossless way
-           detect the optimization which has caused the error and deactivate it */
+        /* Try to encode the sectors one by one to test if they can be lossly recovered using the current optimizations.
+           If not, detect the optimization which has caused the error and deactivate it */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            uint32_t currentPos = 2352 * i;
-
             /* Try to detect the sector type */
-            sectorsIndex.get_current_data_position()[i] = detect((uint8_t *)&input.buffer[currentPos]);
+            sectorsIndex[i] = detect(input);
 
             if (useTheBestOptimizations)
             {
                 /* Call the function which will determine if those optimizations are the best for that sector */
-                options = check_optimizations((uint8_t *)&input.buffer[currentPos], startSectorNumber + i, options, sectorsIndex.get_current_data_position()[i]);
+                options = check_optimizations(input, startSectorNumber + i, options, sectorsIndex[i]);
             }
+            input.current_position += 2352;
         }
+
+        /* Go back to the start point after analizing */
+        input.revert_current_position();
 
         /* Do a fast calculation to see if the stream fits the output buffer. Otherwise, return an error */
         size_t outputCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], options);
+            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex[i], options);
             outputCalculatedSize += blockCalculatedSize;
         }
 
@@ -138,7 +140,7 @@ namespace ecm
         size_t inputCalculatedSize = 0;
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex.get_current_data_position()[i], options);
+            size_t blockCalculatedSize = get_encoded_sector_size(sectorsIndex[i], options);
             inputCalculatedSize += blockCalculatedSize;
         }
 
@@ -150,7 +152,7 @@ namespace ecm
         /* Start to decode every sector and place it in the output buffer */
         for (uint32_t i = 0; i < inputSectorsNumber; i++)
         {
-            decode_sector(input, output, sectorsIndex.get_current_data_position()[i], startSectorNumber + i, options);
+            decode_sector(input, output, sectorsIndex[i], startSectorNumber + i, options);
         }
 
         sectorsIndex.current_position += inputSectorsNumber;
@@ -329,43 +331,43 @@ namespace ecm
         return true;
     }
 
-    sector_type processor::detect(uint8_t *sector)
+    sector_type processor::detect(data_buffer<char> &input)
     {
         if (
-            sector[0x000] == 0x00 && // sync (12 bytes)
-            sector[0x001] == 0xFF &&
-            sector[0x002] == 0xFF &&
-            sector[0x003] == 0xFF &&
-            sector[0x004] == 0xFF &&
-            sector[0x005] == 0xFF &&
-            sector[0x006] == 0xFF &&
-            sector[0x007] == 0xFF &&
-            sector[0x008] == 0xFF &&
-            sector[0x009] == 0xFF &&
-            sector[0x00A] == 0xFF &&
-            sector[0x00B] == 0x00)
+            input[0x000] == (char)0x00 && // sync (12 bytes)
+            input[0x001] == (char)0xFF &&
+            input[0x002] == (char)0xFF &&
+            input[0x003] == (char)0xFF &&
+            input[0x004] == (char)0xFF &&
+            input[0x005] == (char)0xFF &&
+            input[0x006] == (char)0xFF &&
+            input[0x007] == (char)0xFF &&
+            input[0x008] == (char)0xFF &&
+            input[0x009] == (char)0xFF &&
+            input[0x00A] == (char)0xFF &&
+            input[0x00B] == (char)0x00)
         {
             // Sector is a MODE1/MODE2 sector
             if (
-                sector[0x00F] == 0x01 && // mode (1 byte)
-                sector[0x814] == 0x00 && // reserved (8 bytes)
-                sector[0x815] == 0x00 &&
-                sector[0x816] == 0x00 &&
-                sector[0x817] == 0x00 &&
-                sector[0x818] == 0x00 &&
-                sector[0x819] == 0x00 &&
-                sector[0x81A] == 0x00 &&
-                sector[0x81B] == 0x00)
+                input[0x00F] == (char)0x01 && // mode (1 byte)
+                input[0x814] == (char)0x00 && // reserved (8 bytes)
+                input[0x815] == (char)0x00 &&
+                input[0x816] == (char)0x00 &&
+                input[0x817] == (char)0x00 &&
+                input[0x818] == (char)0x00 &&
+                input[0x819] == (char)0x00 &&
+                input[0x81A] == (char)0x00 &&
+                input[0x81B] == (char)0x00)
             {
                 //  The sector is surelly MODE1 but we will check the EDC
                 if (
                     ecc_check_sector(
-                        sector + 0xC,
-                        sector + 0x10,
-                        sector + 0x81C) &&
-                    edc_compute(0, sector, 0x810) == get32lsb(sector + 0x810))
+                        (uint8_t *)(input + 0xC),
+                        (uint8_t *)(input + 0x10),
+                        (uint8_t *)(input + 0x81C)) &&
+                    edc_compute(0, (uint8_t *)input.get_current_data_position(), 0x810) == get32lsb((uint8_t *)(input + 0x810)))
                 {
-                    if (is_gap(sector + 0x010, 0x800))
+                    if (is_gap((uint8_t *)(input + 0x10), 0x800))
                     {
                         return ST_MODE1_GAP;
                     }
@@ -379,13 +381,13 @@ namespace ecm
                 return ST_MODE1_RAW;
             }
             else if (
-                sector[0x00F] == 0x02 // mode (1 byte)
+                input[0x00F] == (char)0x02 // mode (1 byte)
             )
             {
                 //  The sector is MODE2, and now we will detect what kind
                 //
                 /* First we will check if the sector is a gap, because can be confused with a ST_MODE2_1_GAP */
-                if (is_gap(sector + 0x010, 0x920))
+                if (is_gap((uint8_t *)(input + 0x10), 0x920))
                 {
                     return ST_MODE2_GAP;
                 }
@@ -393,10 +395,10 @@ namespace ecm
                 // Might be Mode 2, Form 1
                 //
                 if (
-                    ecc_check_sector(zeroaddress, sector + 0x010, sector + 0x81C) &&
-                    edc_compute(0, sector + 0x010, 0x808) == get32lsb(sector + 0x818))
+                    ecc_check_sector(zeroaddress, (uint8_t *)(input + 0x10), (uint8_t *)(input + 0x81C)) &&
+                    edc_compute(0, (uint8_t *)(input + 0x10), 0x808) == get32lsb((uint8_t *)(input + 0x818)))
                 {
-                    if (is_gap(sector + 0x018, 0x800))
+                    if (is_gap((uint8_t *)(input + 0x18), 0x800))
                     {
                         return ST_MODE2_XA1_GAP;
                     }
@@ -409,9 +411,9 @@ namespace ecm
                 // Might be Mode 2, Form 2
                 //
                 if (
-                    edc_compute(0, sector + 0x010, 0x91C) == get32lsb(sector + 0x92C))
+                    edc_compute(0, (uint8_t *)(input + 0x10), 0x91C) == get32lsb((uint8_t *)(input + 0x92C)))
                 {
-                    if (is_gap(sector + 0x018, 0x914))
+                    if (is_gap((uint8_t *)(input + 0x18), 0x914))
                     {
                         return ST_MODE2_XA2_GAP;
                     }
@@ -423,11 +425,11 @@ namespace ecm
                 //
                 // Maybe is an strange Mode2 full gap sector
                 //
-                if (sector[0x10] == sector[0x14] &&
-                    sector[0x11] == sector[0x15] &&
-                    sector[0x12] == sector[0x16] &&
-                    sector[0x13] == sector[0x17] &&
-                    is_gap(sector + 0x18, 0x918))
+                if (input[0x10] == input[0x14] &&
+                    input[0x11] == input[0x15] &&
+                    input[0x12] == input[0x16] &&
+                    input[0x13] == input[0x17] &&
+                    is_gap((uint8_t *)(input + 0x18), 0x918))
                 {
                     // Sector is an XA sector, but doesn't match the standard of EDC/ECC and is fully zeroed
                     return ST_MODE2_XA_GAP;
@@ -443,7 +445,7 @@ namespace ecm
         else
         {
             // Sector is not recognized, so might be a CDDA sector
-            if (is_gap(sector, 0x930))
+            if (is_gap((uint8_t *)input.get_current_data_position(), 0x930))
             {
                 return ST_CDDA_GAP;
             }
@@ -456,7 +458,11 @@ namespace ecm
         return ST_UNKNOWN;
     }
 
-    optimizations processor::check_optimizations(uint8_t *sector, uint32_t sectorNumber, optimizations options, sector_type sectorType)
+    optimizations processor::check_optimizations(
+        data_buffer<char> &input,
+        uint32_t sectorNumber,
+        optimizations options,
+        sector_type sectorType)
     {
         if (sectorType == ST_CDDA_GAP || sectorType == ST_CDDA)
         {
@@ -478,6 +484,7 @@ namespace ecm
                                            sectorType == ST_MODE1_RAW ||
                                            sectorType == ST_MODE1_GAP ||
                                            sectorType == ST_MODE2 ||
+                                           sectorType == ST_MODE2_XA_GAP ||
                                            sectorType == ST_MODE2_XA1 ||
                                            sectorType == ST_MODE2_XA1_GAP ||
                                            sectorType == ST_MODE2_XA2 ||
@@ -487,9 +494,9 @@ namespace ecm
             /* We will chech the MSF part */
             std::vector<char> generatedMSF = sector_to_time(sectorNumber);
 
-            if (sector[0x0C] != generatedMSF[0] ||
-                sector[0x0D] != generatedMSF[1] ||
-                sector[0x0E] != generatedMSF[2])
+            if (input[0x0C] != generatedMSF[0] ||
+                input[0x0D] != generatedMSF[1] ||
+                input[0x0E] != generatedMSF[2])
             {
                 newOptions = (optimizations)(newOptions & (~OO_REMOVE_MSF));
             }
@@ -504,10 +511,10 @@ namespace ecm
         {
             /* This mode is detected using the EDC and ECC, so will not be checked */
             if (newOptions & OO_REMOVE_REDUNDANT_FLAG &&
-                (sector[0x10] != sector[0x14] ||
-                 sector[0x11] != sector[0x15] ||
-                 sector[0x12] != sector[0x16] ||
-                 sector[0x13] != sector[0x17]))
+                (input[0x10] != input[0x14] ||
+                 input[0x11] != input[0x15] ||
+                 input[0x12] != input[0x16] ||
+                 input[0x13] != input[0x17]))
             {
                 newOptions = (optimizations)(newOptions & (~OO_REMOVE_REDUNDANT_FLAG));
             }

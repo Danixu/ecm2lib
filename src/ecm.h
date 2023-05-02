@@ -105,7 +105,7 @@ namespace ecm
     public:
         processor();
 
-        sector_type detect(uint8_t *sector);
+        sector_type detect(data_buffer<char> &input);
 
         status_code encode_stream(
             data_buffer<char> &input,
@@ -153,7 +153,7 @@ namespace ecm
             uint8_t *sector,
             uint16_t length);
         optimizations check_optimizations(
-            uint8_t *sector,
+            data_buffer<char> &input,
             uint32_t sector_number,
             optimizations options,
             sector_type type);
