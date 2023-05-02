@@ -24,10 +24,11 @@ namespace ecm
         ST_MODE1_RAW,
         ST_MODE2,
         ST_MODE2_GAP,
-        ST_MODE2_1,
-        ST_MODE2_1_GAP,
-        ST_MODE2_2,
-        ST_MODE2_2_GAP,
+        ST_MODE2_XA_GAP, // Detected in some games. The sector contains the XA flags, but is fully zeroed including the EDC/ECC data, then will be detected as non GAP Mode2 sector
+        ST_MODE2_XA1,
+        ST_MODE2_XA1_GAP,
+        ST_MODE2_XA2,
+        ST_MODE2_XA2_GAP,
         ST_MODEX
     };
 

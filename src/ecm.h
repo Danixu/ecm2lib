@@ -147,6 +147,9 @@ namespace ecm
 
     private:
         bool inline is_gap(
+            data_buffer<char> &input,
+            size_t length);
+        bool inline is_gap(
             uint8_t *sector,
             uint16_t length);
         optimizations check_optimizations(
@@ -209,6 +212,13 @@ namespace ecm
             sector_type type,
             uint16_t &output_size,
             optimizations options);
+        // sector cleaner Mode 2 XA GAP
+        status_code clean_sector_mode_2_xa_gap(
+            uint8_t *out,
+            uint8_t *sector,
+            sector_type type,
+            uint16_t &output_size,
+            optimizations options);
         // sector cleaner Mode 2 XA 1
         status_code clean_sector_mode_2_xa_1(
             uint8_t *out,
@@ -244,6 +254,12 @@ namespace ecm
             optimizations options);
         //  sector regenerator Mode 2
         status_code regenerate_sector_mode_2(
+            data_buffer<char> &input,
+            data_buffer<char> &output,
+            sector_type type,
+            optimizations options);
+        //  sector regenerator Mode 2 XA GAP
+        status_code regenerate_sector_mode_2_xa_gap(
             data_buffer<char> &input,
             data_buffer<char> &output,
             sector_type type,

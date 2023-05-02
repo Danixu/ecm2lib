@@ -200,15 +200,21 @@ namespace ecm
             output.current_position += outputSize;
             break;
 
-        case ST_MODE2_1:
-        case ST_MODE2_1_GAP:
+        case ST_MODE2_XA_GAP:
+            return_code = clean_sector_mode_2_xa_gap((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
+            input.current_position += 2352;
+            output.current_position += outputSize;
+            break;
+
+        case ST_MODE2_XA1:
+        case ST_MODE2_XA1_GAP:
             return_code = clean_sector_mode_2_xa_1((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
             break;
 
-        case ST_MODE2_2:
-        case ST_MODE2_2_GAP:
+        case ST_MODE2_XA2:
+        case ST_MODE2_XA2_GAP:
             return_code = clean_sector_mode_2_xa_2((uint8_t *)output.get_current_data_position(), (uint8_t *)input.get_current_data_position(), type, outputSize, options);
             input.current_position += 2352;
             output.current_position += outputSize;
@@ -288,12 +294,15 @@ namespace ecm
         case ST_MODE2_GAP:
             return regenerate_sector_mode_2(input, output, type, options);
 
-        case ST_MODE2_1:
-        case ST_MODE2_1_GAP:
+        case ST_MODE2_XA_GAP:
+            return regenerate_sector_mode_2_xa_gap(input, output, type, options);
+
+        case ST_MODE2_XA1:
+        case ST_MODE2_XA1_GAP:
             return regenerate_sector_mode_2_xa_1(input, output, type, options);
 
-        case ST_MODE2_2:
-        case ST_MODE2_2_GAP:
+        case ST_MODE2_XA2:
+        case ST_MODE2_XA2_GAP:
             return regenerate_sector_mode_2_xa_2(input, output, type, options);
 
         case ST_MODEX:
@@ -316,6 +325,18 @@ namespace ecm
         for (uint16_t i = 0; i < length; i++)
         {
             if ((sector[i]) != 0x00)
+            {
+                return false; // Sector contains data, so is not a GAP
+            }
+        }
+
+        return true;
+    }
+    bool inline processor::is_gap(data_buffer<char> &input, size_t length)
+    {
+        for (size_t i = 0; i < length; i++)
+        {
+            if ((input[i]) != 0x00)
             {
                 return false; // Sector contains data, so is not a GAP
             }
@@ -393,11 +414,11 @@ namespace ecm
                 {
                     if (is_gap(sector + 0x018, 0x800))
                     {
-                        return ST_MODE2_1_GAP;
+                        return ST_MODE2_XA1_GAP;
                     }
                     else
                     {
-                        return ST_MODE2_1; //  Mode 2, Form 1
+                        return ST_MODE2_XA1; //  Mode 2, Form 1
                     }
                 }
                 //
@@ -408,12 +429,24 @@ namespace ecm
                 {
                     if (is_gap(sector + 0x018, 0x914))
                     {
-                        return ST_MODE2_2_GAP;
+                        return ST_MODE2_XA2_GAP;
                     }
                     else
                     {
-                        return ST_MODE2_2; // Mode 2, Form 2
+                        return ST_MODE2_XA2; // Mode 2, Form 2
                     }
+                }
+                //
+                // Maybe is an strange Mode2 full gap sector
+                //
+                if (sector[0x10] == sector[0x14] &&
+                    sector[0x11] == sector[0x15] &&
+                    sector[0x12] == sector[0x16] &&
+                    sector[0x13] == sector[0x17] &&
+                    is_gap(sector + 0x18, 0x918))
+                {
+                    // Sector is an XA sector, but doesn't match the standard of EDC/ECC and is fully zeroed
+                    return ST_MODE2_XA_GAP;
                 }
 
                 /* If doesn't fit in any of the above modes, then should be just a MODE2 sector which is full of data */
@@ -461,10 +494,10 @@ namespace ecm
                                            sectorType == ST_MODE1_RAW ||
                                            sectorType == ST_MODE1_GAP ||
                                            sectorType == ST_MODE2 ||
-                                           sectorType == ST_MODE2_1 ||
-                                           sectorType == ST_MODE2_1_GAP ||
-                                           sectorType == ST_MODE2_2 ||
-                                           sectorType == ST_MODE2_2_GAP))
+                                           sectorType == ST_MODE2_XA1 ||
+                                           sectorType == ST_MODE2_XA1_GAP ||
+                                           sectorType == ST_MODE2_XA2 ||
+                                           sectorType == ST_MODE2_XA2_GAP))
         {
             /* The sync part is always used to detect the sector, so always will be OK */
             /* We will chech the MSF part */
@@ -479,10 +512,11 @@ namespace ecm
         }
 
         /* Mode 2 optimizations check */
-        if (sectorType == ST_MODE2_1 ||
-            sectorType == ST_MODE2_1_GAP ||
-            sectorType == ST_MODE2_2 ||
-            sectorType == ST_MODE2_2_GAP)
+        if (sectorType == ST_MODE2_XA_GAP ||
+            sectorType == ST_MODE2_XA1 ||
+            sectorType == ST_MODE2_XA1_GAP ||
+            sectorType == ST_MODE2_XA2 ||
+            sectorType == ST_MODE2_XA2_GAP)
         {
             /* This mode is detected using the EDC and ECC, so will not be checked */
             if (newOptions & OO_REMOVE_REDUNDANT_FLAG &&
@@ -746,6 +780,53 @@ namespace ecm
         return STATUS_OK;
     }
 
+    // Mode 2 XA GAP
+    status_code processor::clean_sector_mode_2_xa_gap(
+        uint8_t *out,
+        uint8_t *sector,
+        sector_type type,
+        uint16_t &outputSize,
+        optimizations options)
+    {
+        // SYNC bytes
+        if (!(options & OO_REMOVE_SYNC))
+        {
+            memcpy(out, sector, 0x0C);
+            outputSize += 0x0C;
+        }
+        // Address bytes
+        if (!(options & OO_REMOVE_MSF))
+        {
+            memcpy(out + outputSize, sector + 0x0C, 0x03);
+            outputSize += 0x03;
+        }
+        // Mode bytes
+        if (!(options & OO_REMOVE_MODE))
+        {
+            memcpy(out + outputSize, sector + 0x0F, 0x01);
+            outputSize += 0x01;
+        }
+        // Flags bytes
+        if (!(options & OO_REMOVE_REDUNDANT_FLAG))
+        {
+            memcpy(out + outputSize, sector + 0x10, 0x08);
+            outputSize += 0x08;
+        }
+        else
+        {
+            memcpy(out + outputSize, sector + 0x10, 0x04);
+            outputSize += 0x04;
+        }
+        // GAP bytes
+        if (!(options & OO_REMOVE_GAP))
+        {
+            memcpy(out + outputSize, sector + 0x18, 0x918);
+            outputSize += 0x918;
+        }
+
+        return STATUS_OK;
+    }
+
     // Mode 2 XA 1
     status_code processor::clean_sector_mode_2_xa_1(
         uint8_t *out,
@@ -784,7 +865,7 @@ namespace ecm
             outputSize += 0x04;
         }
         // Data bytes
-        if (type == ST_MODE2_1 || !(options & OO_REMOVE_GAP))
+        if (type == ST_MODE2_XA1 || !(options & OO_REMOVE_GAP))
         {
             memcpy(out + outputSize, sector + 0x18, 0x800);
             outputSize += 0x800;
@@ -843,7 +924,7 @@ namespace ecm
             outputSize += 0x04;
         }
         // Data bytes
-        if (type == ST_MODE2_2 || !(options & OO_REMOVE_GAP))
+        if (type == ST_MODE2_XA2 || !(options & OO_REMOVE_GAP))
         {
             memcpy(out + outputSize, sector + 0x18, 0x914);
             outputSize += 0x914;
@@ -1008,6 +1089,56 @@ namespace ecm
         return STATUS_OK;
     }
 
+    // Mode 2 XA GAP
+    status_code processor::regenerate_sector_mode_2_xa_gap(
+        data_buffer<char> &input,
+        data_buffer<char> &output,
+        sector_type type,
+        optimizations options)
+    {
+        // Mode bytes
+        if (!(options & OO_REMOVE_MODE))
+        {
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x01);
+            input.current_position += 0x01;
+        }
+        else
+        {
+            *output.get_current_data_position() = 0x02;
+        }
+        output.current_position += 0x01;
+        // Flags bytes
+        if (!(options & OO_REMOVE_REDUNDANT_FLAG))
+        {
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x08);
+            input.current_position += 0x08;
+        }
+        else
+        {
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            input.current_position += 0x04;
+            output.get_current_data_position()[4] = output.get_current_data_position()[0];
+            output.get_current_data_position()[5] = output.get_current_data_position()[1];
+            output.get_current_data_position()[6] = output.get_current_data_position()[2];
+            output.get_current_data_position()[7] = output.get_current_data_position()[3];
+        }
+        output.current_position += 0x08;
+        // GAP bytes
+        if (!(options & OO_REMOVE_GAP))
+        {
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x912);
+            input.current_position += 0x912;
+        }
+        else
+        {
+            std::memset(output.get_current_data_position(), 0x00, 0x912);
+        }
+        output.current_position += 0x912;
+        output.update_start_position();
+
+        return STATUS_OK;
+    }
+
     // Mode 2 XA 1
     status_code processor::regenerate_sector_mode_2_xa_1(
         data_buffer<char> &input,
@@ -1043,7 +1174,7 @@ namespace ecm
         }
         output.current_position += 0x08;
         // Data bytes
-        if (type == ST_MODE2_1 || !(options & OO_REMOVE_GAP))
+        if (type == ST_MODE2_XA1 || !(options & OO_REMOVE_GAP))
         {
             std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x800);
             input.current_position += 0x800;
@@ -1115,7 +1246,7 @@ namespace ecm
         }
         output.current_position += 0x08;
         // Data bytes
-        if (type == ST_MODE2_2 || !(options & OO_REMOVE_GAP))
+        if (type == ST_MODE2_XA2 || !(options & OO_REMOVE_GAP))
         {
             std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x914);
             input.current_position += 0x914;
@@ -1237,8 +1368,39 @@ namespace ecm
             }
             break;
 
-        case ST_MODE2_1:
-        case ST_MODE2_1_GAP:
+        case ST_MODE2_XA_GAP:
+            // SYNC bytes
+            if (!(options & OO_REMOVE_SYNC))
+            {
+                output_size += 0x0C;
+            }
+            // Address bytes
+            if (!(options & OO_REMOVE_MSF))
+            {
+                output_size += 0x03;
+            }
+            // Mode bytes
+            if (!(options & OO_REMOVE_MODE))
+            {
+                output_size += 0x01;
+            }
+            // Flags bytes
+            if (!(options & OO_REMOVE_REDUNDANT_FLAG))
+            {
+                output_size += 0x08;
+            }
+            else
+            {
+                output_size += 0x04;
+            }
+            // Full sector gap
+            if (!(options & OO_REMOVE_GAP))
+            {
+                output_size += 0x918;
+            }
+
+        case ST_MODE2_XA1:
+        case ST_MODE2_XA1_GAP:
             // SYNC bytes
             if (!(options & OO_REMOVE_SYNC))
             {
@@ -1264,7 +1426,7 @@ namespace ecm
                 output_size += 0x04;
             }
             // Data bytes
-            if (type == ST_MODE2_1 || !(options & OO_REMOVE_GAP))
+            if (type == ST_MODE2_XA1 || !(options & OO_REMOVE_GAP))
             {
                 output_size += 0x800;
             }
@@ -1280,8 +1442,8 @@ namespace ecm
             }
             break;
 
-        case ST_MODE2_2:
-        case ST_MODE2_2_GAP:
+        case ST_MODE2_XA2:
+        case ST_MODE2_XA2_GAP:
             // SYNC bytes
             if (!(options & OO_REMOVE_SYNC))
             {
@@ -1307,7 +1469,7 @@ namespace ecm
                 output_size += 0x04;
             }
             // Data bytes
-            if (type == ST_MODE2_2 || !(options & OO_REMOVE_GAP))
+            if (type == ST_MODE2_XA2 || !(options & OO_REMOVE_GAP))
             {
                 output_size += 0x914;
             }
