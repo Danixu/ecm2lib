@@ -101,7 +101,7 @@ int main()
     std::ofstream _oif("test.idx", std::ios::trunc | std::ios::binary);
 
     /* Read the file sector by sector and try the library */
-    uint8_t *buffer = new uint8_t[2352]();
+    ecm::data_buffer<char> buffer(2352);
     while (currentPos < fileSize)
     {
         if (_fp.eof())
@@ -110,7 +110,7 @@ int main()
             break;
         }
         /* Read a sector */
-        _fp.read((char *)buffer, 2352);
+        _fp.read(buffer.buffer.data(), 2352);
 
         /* Check the sector type */
         ecm::sector_type detectedType = ecmProcessor.detect(buffer);
@@ -126,7 +126,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_CDDA.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 cdda = true;
@@ -144,7 +144,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_CDDA_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 cddaGap = true;
@@ -162,7 +162,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE1.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode1 = true;
@@ -180,7 +180,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE1_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode1Gap = true;
@@ -198,7 +198,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE1_RAW.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode1Raw = true;
@@ -216,7 +216,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2 = true;
@@ -234,7 +234,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2Gap = true;
@@ -242,7 +242,25 @@ int main()
             currentPos = _fp.tellg();
             continue;
         }
-        else if (detectedType == ecm::ST_MODE2_1)
+        else if (detectedType == ecm::ST_MODE2_XA_GAP)
+        {
+            if (mode2_1 == false)
+            {
+                uint64_t detectedPos = (uint64_t)_fp.tellg() - 2352;
+                printf("Detected the first Mode2 XA GAP type sector in the position %d\n", detectedPos);
+                if (EXTRACT)
+                {
+                    std::fstream _of;
+                    _of.open("SECTOR_MODE2_XA_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+                    _of.write(buffer.buffer.data(), 2352);
+                    _of.close();
+                }
+                mode2_1 = true;
+            }
+            currentPos = _fp.tellg();
+            continue;
+        }
+        else if (detectedType == ecm::ST_MODE2_XA1)
         {
             if (mode2_1 == false)
             {
@@ -252,7 +270,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2_XA1.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2_1 = true;
@@ -260,7 +278,7 @@ int main()
             currentPos = _fp.tellg();
             continue;
         }
-        else if (detectedType == ecm::ST_MODE2_1_GAP)
+        else if (detectedType == ecm::ST_MODE2_XA1_GAP)
         {
             if (mode2_1_Gap == false)
             {
@@ -270,7 +288,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2_XA1_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2_1_Gap = true;
@@ -278,7 +296,7 @@ int main()
             currentPos = _fp.tellg();
             continue;
         }
-        else if (detectedType == ecm::ST_MODE2_2)
+        else if (detectedType == ecm::ST_MODE2_XA2)
         {
             if (mode2_2 == false)
             {
@@ -288,7 +306,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2_XA2.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2_2 = true;
@@ -296,7 +314,7 @@ int main()
             currentPos = _fp.tellg();
             continue;
         }
-        else if (detectedType == ecm::ST_MODE2_2_GAP)
+        else if (detectedType == ecm::ST_MODE2_XA2_GAP)
         {
             if (mode2_2_Gap == false)
             {
@@ -306,7 +324,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODE2_XA2_GAP.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 mode2_2_Gap = true;
@@ -324,7 +342,7 @@ int main()
                 {
                     std::fstream _of;
                     _of.open("SECTOR_MODEX.bin", std::ios::out | std::ios::trunc | std::ios::binary);
-                    _of.write((char *)buffer, 2352);
+                    _of.write(buffer.buffer.data(), 2352);
                     _of.close();
                 }
                 modeX = true;
@@ -340,9 +358,6 @@ int main()
 
     _fp.close();
     _oif.close();
-
-    /* Free the buffer */
-    delete[] buffer;
 
     return 0;
 }

@@ -58,7 +58,6 @@ struct file_info
     std::string filename = "";
     ecm::sector_type sectorType = ecm::ST_UNKNOWN;
     bool msf = false;
-    uint8_t *sector = nullptr;
 };
 
 /**
@@ -79,10 +78,19 @@ int main()
     testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE1_GAP.bin", ecm::ST_MODE1_GAP, true});
     testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE1_RAW.bin", ecm::ST_MODE1_RAW, true});
     testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2.bin", ecm::ST_MODE2, true});
-    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA1.bin", ecm::ST_MODE2_1, true});
-    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA1_GAP.bin", ecm::ST_MODE2_1_GAP, true});
-    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA2.bin", ecm::ST_MODE2_2, true});
-    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA2_GAP.bin", ecm::ST_MODE2_2_GAP, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_GAP.bin", ecm::ST_MODE2_GAP, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA_GAP.bin", ecm::ST_MODE2_XA_GAP, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA1.bin", ecm::ST_MODE2_XA1, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA1_GAP.bin", ecm::ST_MODE2_XA1_GAP, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA2.bin", ecm::ST_MODE2_XA2, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODE2_XA2_GAP.bin", ecm::ST_MODE2_XA2_GAP, true});
+    testFiles.push_back({"..\\tests\\bins\\SECTOR_MODEX.bin", ecm::ST_MODEX, true});
+
+    /* Preparing the buffers and the processor */
+    ecm::data_buffer<char> inputBuffer(2352);
+    ecm::data_buffer<char> processBuffer(2352);
+    ecm::data_buffer<char> outputBuffer(2352);
+    ecm::processor sectorsProcessor;
 
     for (uint8_t i = 0; i < testFiles.size(); i++)
     {
@@ -97,46 +105,55 @@ int main()
         }
 
         /* Read the file into the buffer */
-        testFiles[i].sector = new uint8_t[2352]();
-        _fp.read((char *)testFiles[i].sector, 2352);
+        _fp.read(inputBuffer.get_current_data_position(), 2352);
         _fp.close();
-    }
 
-    /* It is time to do the tests */
-    uint8_t *processBuffer = new uint8_t[2352]();
-    uint8_t *outputBuffer = new uint8_t[2352]();
-    ecm::processor sectorsProcessor;
-    for (uint8_t i = 0; i < testFiles.size(); i++)
-    {
+        /* It is time to do the tests */
+
         printf("----------------------------------------------------------------------\n");
-        if (testFiles[i].sector == nullptr)
+        if (inputBuffer.buffer.size() == 0)
         {
             /* There was any kind of error opening the file */
-            printf("The file %s cannot be opened so no test were done on it.\n", testFiles[i].filename.c_str());
+            printf("The file %s cannot be opened so no test will be done on it.\n", testFiles[i].filename.c_str());
         }
         else
         {
             printf("Testing the optimizations for the sector %s of type %d\n", testFiles[i].filename.c_str(), testFiles[i].sectorType);
 
-            /* Clean the buffers */
-            memset(processBuffer, 0, 2352);
-            memset(outputBuffer, 0, 2352);
+            /* Detect the sector type and confirm that matches the provided */
+            ecm::sector_type detected_sector_type = sectorsProcessor.detect(inputBuffer);
+
+            if (detected_sector_type == testFiles[i].sectorType)
+            {
+                printf("The detected sector matches the provided sector type.\n");
+            }
+            else
+            {
+                printf("The detected sector doesn't matches thee provided sector type: %d\n", detected_sector_type);
+            }
 
             /* Encode the sector in the output buffer */
-            uint16_t outputProcessedSize = 0;
-            sectorsProcessor.encode_sector(processBuffer, testFiles[i].sector, testFiles[i].sectorType, outputProcessedSize, OPTIMIZATIONS);
-            printf("The encoded size is %d.\n", outputProcessedSize);
+            sectorsProcessor.encode_sector(inputBuffer, processBuffer, testFiles[i].sectorType, OPTIMIZATIONS);
+            printf("Readed from source %d and the encoded size is %d.\n", inputBuffer.current_position, processBuffer.current_position);
 
             /* Get the original sector number */
-            uint32_t sectorNumber = sectorsProcessor.time_to_sector(testFiles[i].sector + 0x0C);
+            inputBuffer.current_position = 0x0C;
+            uint32_t sectorNumber = sectorsProcessor.time_to_sector(inputBuffer);
+
+            printf("The sector number is %d\n", sectorNumber);
+
+            inputBuffer.reset_positions();
+            processBuffer.reset_positions();
 
             /* Try to regenerate the sector again */
-            uint16_t outputReadedSize = 0;
-            sectorsProcessor.decode_sector(outputBuffer, processBuffer, testFiles[i].sectorType, sectorNumber, outputReadedSize, OPTIMIZATIONS);
-            printf("Readed bytes from encoded stream (must match the encoded size): %d.\n", outputReadedSize);
+            sectorsProcessor.decode_sector(processBuffer, outputBuffer, testFiles[i].sectorType, sectorNumber, OPTIMIZATIONS);
+            printf("Readed bytes from encoded stream (must match the encoded size): %d and written: %d.\n", processBuffer.current_position, outputBuffer.current_position);
+
+            outputBuffer.reset_positions();
+            processBuffer.reset_positions();
 
             /* Verify if the sector matches (it is perfectly encoded) */
-            int checkSector = memcmp(testFiles[i].sector, outputBuffer, 2352);
+            int checkSector = memcmp(inputBuffer.buffer.data(), outputBuffer.buffer.data(), 2352);
             if (checkSector == 0)
             {
                 printf("The sector was encoded and decoded without any problem.\n");
@@ -149,71 +166,90 @@ int main()
                 char fname[17] = {0};
                 sprintf(fname, "output_%d_%d.bin", i, testFiles[i].sectorType);
                 std::ofstream errorFile = std::ofstream(fname, std::ios::binary);
-                errorFile.write((char *)outputBuffer, 2352);
+                errorFile.write(outputBuffer.buffer.data(), 2352);
                 errorFile.close();
             }
             printf("----------------------------------------------------------------------\n");
         }
     }
-    /* Delete the temporal buffers */
-    delete[] processBuffer;
-    delete[] outputBuffer;
 
     printf("----------------------------------------------------------------------\n");
-    printf("Creating a stream buffer of %d bytes.\n", 2352 * testFiles.size());
-    uint8_t *inputBuffer = new uint8_t[2352 * testFiles.size()]();
+    printf("Resizing the buffers to %d bytes.\n", 2352 * testFiles.size());
+    inputBuffer.buffer.resize(2352 * testFiles.size());
+    inputBuffer.reset_positions();
+    processBuffer.buffer.resize(2352 * testFiles.size());
+    processBuffer.reset_positions();
+    outputBuffer.buffer.resize(2352 * testFiles.size());
+    outputBuffer.reset_positions();
 
     /* Copy all the sectors to the test buffer */
-    uint64_t currentPos = 0;
     for (file_info x : testFiles)
     {
-        memccpy(inputBuffer + currentPos, x.sector, 2352, 2352);
-        currentPos += 2352;
+        std::ifstream _fp(x.filename, std::ios::binary);
+
+        if (!_fp.is_open())
+        {
+            printf("There was an error opening the %s file.\n", x.filename.c_str());
+            continue;
+        }
+
+        /* Read the file into the buffer */
+        _fp.read(inputBuffer.get_current_data_position(), 2352);
+        _fp.close();
+
+        inputBuffer.current_position += 2352;
     }
 
+    /* Reset the input buffer position again */
+    inputBuffer.reset_positions();
+
+    ///////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////
+
     /* Test the multi sector encoder & decoder */
-    outputBuffer = new uint8_t[2352 * testFiles.size()]();
-    uint8_t *encodedBuffer = new uint8_t[2352 * testFiles.size()]();
-    ecm::sector_type *sectorIndex = new ecm::sector_type[testFiles.size()]();
-    uint64_t encodedSize = 2352 * testFiles.size();
+    ecm::data_buffer<ecm::sector_type> sectorIndex(testFiles.size());
     // ecm::optimizations usedOptimizations = (ecm::optimizations)((OPTIMIZATIONS) & ~ecm::OO_REMOVE_MSF);
     ecm::optimizations usedOptimizations = (ecm::optimizations)(OPTIMIZATIONS);
     ecm::optimizations resultedOptimizations = usedOptimizations;
 
     /* Encode the data using the stream encoder */
     sectorsProcessor.encode_stream(
-        encodedBuffer,
-        encodedSize,
         inputBuffer,
-        2352 * testFiles.size(),
-        1,
-        resultedOptimizations,
+        processBuffer,
         sectorIndex,
-        testFiles.size());
+        testFiles.size(),
+        1,
+        resultedOptimizations);
 
     if (usedOptimizations != resultedOptimizations)
     {
         printf("WARNING: The optimizations has changed...\n\tOld: %d\n\tNew: %d\n", usedOptimizations, resultedOptimizations);
     }
 
-    /* The sectors were optimized correctly, so now it's time to decode and test */
-    uint64_t inputSize = encodedSize;
-    sectorsProcessor.decode_stream(
-        outputBuffer,
-        2352 * testFiles.size(),
-        encodedBuffer,
-        inputSize,
-        1,
-        resultedOptimizations,
-        sectorIndex,
-        testFiles.size());
+    size_t encodedSize = processBuffer.current_position;
+    processBuffer.reset_positions();
+    sectorIndex.reset_positions();
 
-    if (inputSize != encodedSize)
+    for (size_t i = 0; i < sectorIndex.buffer.size(); i++)
+    {
+        printf("Header entry %d is a sector of type %d\n", i, sectorIndex[i]);
+    }
+
+    /* The sectors were optimized correctly, so now it's time to decode and test */
+    sectorsProcessor.decode_stream(
+        processBuffer,
+        outputBuffer,
+        sectorIndex,
+        testFiles.size(),
+        1,
+        resultedOptimizations);
+
+    if (processBuffer.current_position != encodedSize)
     {
         printf("WARNING: The encoded stream size and the readed bytes size doesn't match.\n");
     }
 
-    int status = memcmp(inputBuffer, outputBuffer, 2352 * testFiles.size());
+    int status = memcmp(inputBuffer.buffer.data(), outputBuffer.buffer.data(), 2352 * testFiles.size());
     if (status != 0)
     {
         printf("ERROR: The original and the decoded streams doesn't match. Check the code...\n");
@@ -221,10 +257,10 @@ int main()
         /* We will save both buffers to verify */
         std::ofstream output;
         output.open("original_stream.bin", std::ios::binary | std::ios::trunc);
-        output.write((char *)inputBuffer, 2352 * testFiles.size());
+        output.write(inputBuffer.buffer.data(), 2352 * testFiles.size());
         output.close();
         output.open("decoded_stream.bin", std::ios::binary | std::ios::trunc);
-        output.write((char *)outputBuffer, 2352 * testFiles.size());
+        output.write(outputBuffer.buffer.data(), 2352 * testFiles.size());
         output.close();
     }
     else
@@ -232,21 +268,6 @@ int main()
         printf("The stream encoding and decoding was done without any problem.\n");
     }
     printf("----------------------------------------------------------------------\n");
-
-    printf("Deleting the stream buffers.\n");
-    delete[] inputBuffer;
-    delete[] outputBuffer;
-    delete[] encodedBuffer;
-
-    /* It's time to free the reserved buffers to avoid memory leaks */
-    for (file_info x : testFiles)
-    {
-        if (x.sector != nullptr)
-        {
-            printf("Deleting the file %s sector buffer.\n", x.filename.c_str());
-            delete[] x.sector;
-        }
-    }
 
     return 0;
 }
