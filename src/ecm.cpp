@@ -1216,24 +1216,21 @@ namespace ecm
         else
         {
             std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            std::memcpy(output + 0x04, input.get_current_data_position(), 0x04);
             input.current_position += 0x04;
-            output.get_current_data_position()[4] = output.get_current_data_position()[0];
-            output.get_current_data_position()[5] = output.get_current_data_position()[1];
-            output.get_current_data_position()[6] = output.get_current_data_position()[2];
-            output.get_current_data_position()[7] = output.get_current_data_position()[3];
         }
         output.current_position += 0x08;
         // GAP bytes
         if (!(options & OO_REMOVE_GAP))
         {
-            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x912);
-            input.current_position += 0x912;
+            std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x918);
+            input.current_position += 0x918;
         }
         else
         {
-            std::memset(output.get_current_data_position(), 0x00, 0x912);
+            std::memset(output.get_current_data_position(), 0x00, 0x918);
         }
-        output.current_position += 0x912;
+        output.current_position += 0x918;
         output.update_start_position();
 
         return STATUS_OK;
@@ -1266,11 +1263,8 @@ namespace ecm
         else
         {
             std::memcpy(output.get_current_data_position(), input.get_current_data_position(), 0x04);
+            std::memcpy(output + 0x04, input.get_current_data_position(), 0x04);
             input.current_position += 0x04;
-            output.get_current_data_position()[4] = output.get_current_data_position()[0];
-            output.get_current_data_position()[5] = output.get_current_data_position()[1];
-            output.get_current_data_position()[6] = output.get_current_data_position()[2];
-            output.get_current_data_position()[7] = output.get_current_data_position()[3];
         }
         output.current_position += 0x08;
         // Data bytes

@@ -137,9 +137,6 @@ namespace ecm
             uint32_t sector_number,
             optimizations options);
 
-        // std::vector<compacted_header> pack_header(data_buffer<sector_type> &index);
-        // ecm::data_buffer<sector_type> unpack_header(std::vector<compacted_header> &index);
-
         std::vector<char> pack_header(data_buffer<sector_type> &index, uint8_t bytes_to_store_number = 3);
         ecm::data_buffer<sector_type> unpack_header(std::vector<char> &index, uint8_t bytes_to_store_number = 3);
 
