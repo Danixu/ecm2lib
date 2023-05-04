@@ -217,15 +217,14 @@ namespace ecm
     }
 
     /**
-     * @brief Switcher of the sector regeneration functions. It will execute the function depending of the desired type
+     * @brief
      *
-     * @param out
-     * @param sector
+     * @param input
+     * @param output
      * @param type
-     * @param sectorNumber
-     * @param bytesReaded
+     * @param sector_number
      * @param options
-     * @return int8_t
+     * @return status_code
      */
     status_code processor::decode_sector(
         data_buffer<char> &input,
@@ -298,111 +297,77 @@ namespace ecm
         return STATUS_OK;
     }
 
-    std::vector<compacted_header> processor::pack_header(data_buffer<sector_type> &sectors)
-    {
-        std::vector<compacted_header> packed_header;
-
-        sector_type current = ST_UNKNOWN;
-        uint32_t count = 0;
-
-        for (size_t i = 0; i < sectors.buffer.size(); i++)
-        {
-            /* If not sector was set (first iteration), update it */
-            if (current == ST_UNKNOWN)
-            {
-                current = sectors[i];
-            }
-
-            if (current != sectors[i])
-            {
-                packed_header.push_back({current, count});
-                current = sectors[i];
-                count = 0;
-            }
-            count++;
-
-            /* Last iteration so must be pushed to the vector */
-            if ((i + 1) == sectors.buffer.size())
-            {
-                packed_header.push_back({current, count});
-            }
-        }
-
-        return packed_header;
-    }
-
-    data_buffer<sector_type> processor::unpack_header(std::vector<compacted_header> &sectors)
-    {
-        data_buffer<sector_type> unpacked_header;
-
-        /* Go to the compacted header one by one */
-        for (size_t i = 0; i < sectors.size(); i++)
-        {
-            /* Append one entry by sector */
-            for (uint32_t j = 0; j < sectors[i].count; j++)
-            {
-                unpacked_header.buffer.push_back(sectors[i].type);
-            }
-        }
-
-        return unpacked_header;
-    }
-
-    std::vector<char> processor::ultrapack_header(data_buffer<sector_type> &sectors)
+    /**
+     * @brief Pack the "One sector - One byte" header into a Type + Counter style header, which will do a noticeable size reduction which will depend of the types mixture.
+     *
+     * @param index One sector - One byte vector containing the index of all the sectors in the stream
+     * @param bytes_for_counter Bytes reserved for the counter of sectors of every type. A lower number normally will reduce the header size, but depends of the types mixture. Max recommended 3, and max accepted 4.
+     * @return std::vector<char> Returns the header stream containig the same header info but packed
+     */
+    std::vector<char> processor::pack_header(data_buffer<sector_type> &index, uint8_t bytes_for_counter)
     {
         std::vector<char> packed_header;
 
-        sector_type current = ST_UNKNOWN;
-        uint32_t count = 0;
+        /* to have more than 4 bytes for the counter is a big waste (even 4 is a waste), and less than 1 is not possible */
+        if (bytes_for_counter > 4)
+        {
+            bytes_for_counter = 4;
+        }
+        else if (bytes_for_counter < 1)
+        {
+            bytes_for_counter = 1;
+        }
 
-        for (size_t i = 0; i < sectors.buffer.size(); i++)
+        sector_type current = ST_UNKNOWN;
+        size_t count = 0;
+        size_t max_count = pow(256, bytes_for_counter) - 1;
+
+        for (size_t i = 0; i < index.buffer.size(); i++)
         {
             /* If not sector was set (first iteration), update it */
             if (current == ST_UNKNOWN)
             {
-                current = sectors[i];
+                current = index[i];
             }
 
-            if (current != sectors[i])
+            /* Last iteration so must be pushed to the vector */
+            if (count > 0 &&
+                ((i + 1) == index.buffer.size() || count == max_count || current != index[i]))
             {
                 /* Get current size and position, and increase the size by 4 chars (bytes) */
                 size_t current_header_size = packed_header.size();
-                packed_header.resize(current_header_size + 4);
+                packed_header.resize(current_header_size + bytes_for_counter + 1);
                 /* Store the current type and 3 bytes of the uint32_t variable */
                 packed_header.data()[current_header_size] = current;
-                memcpy(packed_header.data() + current_header_size + 1, &count, 3);
+                memcpy(packed_header.data() + current_header_size + 1, &count, bytes_for_counter);
 
-                current = sectors[i];
+                current = index[i];
                 count = 0;
             }
             count++;
-
-            /* Last iteration so must be pushed to the vector */
-            if ((i + 1) == sectors.buffer.size())
-            {
-                /* Get current size and position, and increase the size by 4 chars (bytes) */
-                size_t current_header_size = packed_header.size();
-                packed_header.resize(current_header_size + 4);
-                /* Store the current type and 3 bytes of the uint32_t variable */
-                packed_header.data()[current_header_size] = current;
-                memcpy(packed_header.data() + current_header_size + 1, &count, 3);
-            }
         }
 
         return packed_header;
     }
 
-    data_buffer<sector_type> processor::ultraunpack_header(std::vector<char> &sectors)
+    /**
+     * @brief Unpack the data packed by ultrapack_header function, returning it back into a data_buffer<sector_type> vector.
+     *
+     * @param index Packed Index data vector in a char format
+     * @param bytes_for_counter Bytes that were used to store the counter of every type. Must match the used in the pack_header function or the header will be corrupted.
+     * @return data_buffer<sector_type> The unpacked data in "One sector - One byte" mode, stored in a data_buffer<sector_type> format
+     */
+    data_buffer<sector_type> processor::unpack_header(std::vector<char> &index, uint8_t bytes_for_counter)
     {
         data_buffer<sector_type> unpacked_header;
 
         /* Go to the compacted header one by one */
-        for (size_t i = 0; i < sectors.size(); i += 4)
+        for (size_t i = 0; i < index.size(); i += (bytes_for_counter + 1))
         {
-            sector_type type = (sector_type)sectors.data()[i];
-            uint32_t count = 0;
+            sector_type type = (sector_type)index.data()[i];
+            size_t count = 0;
 
-            memcpy(&count, sectors.data() + (i + 1), 3);
+            memcpy(&count, index.data() + (i + 1), bytes_for_counter);
 
             /* Append one entry by sector */
             for (uint32_t j = 0; j < count; j++)
@@ -1659,9 +1624,9 @@ namespace ecm
      */
     uint32_t processor::time_to_sector(data_buffer<char> &input)
     {
-        uint16_t minutes = (input[0] / 16 * 10) + (input[0] % 16);
-        uint16_t seconds = (input[1] / 16 * 10) + (input[1] % 16);
-        uint16_t sectors = (input[2] / 16 * 10) + (input[2] % 16);
+        uint16_t minutes = (input.get_current_data_position()[0] / 16 * 10) + (input.get_current_data_position()[0] % 16);
+        uint16_t seconds = (input.get_current_data_position()[1] / 16 * 10) + (input.get_current_data_position()[1] % 16);
+        uint16_t sectors = (input.get_current_data_position()[2] / 16 * 10) + (input.get_current_data_position()[2] % 16);
 
         uint32_t time = (minutes * 60 * 75) + (seconds * 75) + sectors;
         return time;
