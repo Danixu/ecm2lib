@@ -332,7 +332,7 @@ namespace ecm
 
             /* Last iteration so must be pushed to the vector */
             if (count > 0 &&
-                ((i + 1) == index.buffer.size() || count == max_count || current != index[i]))
+                (count == max_count || current != index[i]))
             {
                 /* Get current size and position, and increase the size by 4 chars (bytes) */
                 size_t current_header_size = packed_header.size();
@@ -345,6 +345,19 @@ namespace ecm
                 count = 0;
             }
             count++;
+
+            if ((i + 1) == index.buffer.size())
+            {
+                /* Get current size and position, and increase the size by 4 chars (bytes) */
+                size_t current_header_size = packed_header.size();
+                packed_header.resize(current_header_size + bytes_for_counter + 1);
+                /* Store the current type and 3 bytes of the uint32_t variable */
+                packed_header.data()[current_header_size] = current;
+                memcpy(packed_header.data() + current_header_size + 1, &count, bytes_for_counter);
+
+                current = index[i];
+                count = 0;
+            }
         }
 
         return packed_header;
@@ -370,7 +383,7 @@ namespace ecm
             memcpy(&count, index.data() + (i + 1), bytes_for_counter);
 
             /* Append one entry by sector */
-            for (uint32_t j = 0; j < count; j++)
+            for (size_t j = 0; j < count; j++)
             {
                 unpacked_header.buffer.push_back(type);
             }

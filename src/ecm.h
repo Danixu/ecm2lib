@@ -98,6 +98,9 @@
 
 #ifndef __ECM_H__
 #define __ECM_H__
+
+#define CDROM_IMAGE_START_SECTOR 150
+
 namespace ecm
 {
     class processor
