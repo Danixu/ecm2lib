@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Compile the encode_decode executable",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\output\\encode_decode.exe",
+            "cwd": "${workspaceFolder}\\output\\",
+            "preLaunchTask": "C/C++: g++.exe compile encode_decode"
+        },
+        {
             "name": "Test the info and sector extractor",
             "type": "cppdbg",
             "request": "launch",
